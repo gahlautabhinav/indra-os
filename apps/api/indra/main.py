@@ -86,6 +86,7 @@ def create_app() -> FastAPI:
 
 def _register_routers(app: FastAPI) -> None:
     from indra.core.auth import router as auth_router
+    from indra.domains.aditya.smriti.router import router as memory_router
     from indra.domains.indra.router import router as indra_router
     from indra.domains.vasu.somah.router import router as mcp_router
     from indra.domains.vasu.suryah.router import router as trace_router
@@ -95,6 +96,7 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(indra_router, prefix="/api/v1", tags=["indra"])
     app.include_router(mcp_router, prefix="/api/v1", tags=["mcp"])
     app.include_router(trace_router, prefix="/api/v1", tags=["traces"])
+    app.include_router(memory_router, prefix="/api/v1", tags=["memory"])
     app.include_router(ws_router, tags=["websocket"])
 
     @app.get("/health", tags=["system"])
