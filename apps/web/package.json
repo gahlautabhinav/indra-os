@@ -30,7 +30,6 @@
     "@radix-ui/react-dropdown-menu": "^2.1.4",
     "@radix-ui/react-slot": "^1.1.1",
     "@radix-ui/react-separator": "^1.1.1",
-    "@radix-ui/react-badge": "*",
     "@indra/types": "*",
     "@indra/design-tokens": "*"
   },
@@ -45,6 +44,9 @@
     "eslint": "^9.0.0",
     "eslint-config-next": "15.3.3",
     "vitest": "^2.1.8",
-    "@vitejs/plugin-react": "^4.3.4"
+    "@vitejs/plugin-react": "^4.3.4",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/jest-dom": "^6.4.0",
+    "jsdom": "^25.0.0"
   }
 }

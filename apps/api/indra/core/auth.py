@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -42,22 +42,22 @@ class UserContext(BaseModel):
 
 
 def _hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return pwd_context.hash(password)  # type: ignore[no-any-return]
 
 
 def _verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    return pwd_context.verify(plain, hashed)  # type: ignore[no-any-return]
 
 
 def _create_access_token(payload: dict[str, Any]) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_access_token_expire_minutes)
-    data = {**payload, "exp": expire, "iat": datetime.now(timezone.utc)}
-    return jwt.encode(data, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    expire = datetime.now(UTC) + timedelta(minutes=settings.jwt_access_token_expire_minutes)
+    data = {**payload, "exp": expire, "iat": datetime.now(UTC)}
+    return jwt.encode(data, settings.jwt_secret, algorithm=settings.jwt_algorithm)  # type: ignore[no-any-return]
 
 
 def _decode_token(token: str) -> dict[str, Any]:
     try:
-        return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])  # type: ignore[no-any-return]
     except JWTError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -90,7 +90,7 @@ async def get_current_user(
     return UserContext(id=str(user.id), email=user.email, role=user.role)
 
 
-def require_role(minimum_role: str):
+def require_role(minimum_role: str) -> Any:
     role_rank = {"viewer": 0, "user": 1, "admin": 2}
 
     async def _check(current_user: UserContext = Depends(get_current_user)) -> UserContext:

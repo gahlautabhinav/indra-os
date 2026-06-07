@@ -15,7 +15,6 @@ from __future__ import annotations
 import json
 import logging
 import socket
-import subprocess
 import time
 from pathlib import Path
 
@@ -144,7 +143,7 @@ def _ping_http(url: str, timeout_s: float) -> dict:
         with socket.create_connection((host, port), timeout=timeout_s):
             latency_ms = (time.monotonic() - t0) * 1000
             return {"status": "healthy", "latency_ms": round(latency_ms, 1)}
-    except (socket.timeout, ConnectionRefusedError):
+    except (TimeoutError, ConnectionRefusedError):
         return {"status": "unreachable", "latency_ms": None}
     except OSError:
         return {"status": "degraded", "latency_ms": None}

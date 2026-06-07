@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "indra-api"
@@ -51,12 +51,16 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
-ignore = ["E501"]
+ignore = ["E501", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"indra/models/*.py" = ["F821"]
 
 [tool.mypy]
 python_version = "3.11"
 strict = true
 ignore_missing_imports = true
+disable_error_code = ["type-arg"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

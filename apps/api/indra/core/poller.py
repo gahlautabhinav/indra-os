@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from indra.core.events import IndraEvent
 
@@ -63,7 +63,7 @@ class AgentPoller:
                                 "session_id": session_id,
                                 "status": status,
                             },
-                            timestamp=datetime.now(tz=timezone.utc).isoformat(),
+                            timestamp=datetime.now(tz=UTC).isoformat(),
                         )
                         await ws_manager.publish_event(event)
                     elif prev != status:
@@ -76,7 +76,7 @@ class AgentPoller:
                                 "old_status": prev,
                                 "new_status": status,
                             },
-                            timestamp=datetime.now(tz=timezone.utc).isoformat(),
+                            timestamp=datetime.now(tz=UTC).isoformat(),
                         )
                         await ws_manager.publish_event(event)
 
@@ -87,7 +87,7 @@ class AgentPoller:
                             event_type="session.ended",
                             domain="rudra",
                             data={"session_id": session_id},
-                            timestamp=datetime.now(tz=timezone.utc).isoformat(),
+                            timestamp=datetime.now(tz=UTC).isoformat(),
                         )
                         await ws_manager.publish_event(event)
 

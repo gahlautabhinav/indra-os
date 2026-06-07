@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,7 +48,7 @@ class WorkforceService:
         ) or 0
 
         # Token cost aggregation (today)
-        today_start = datetime.now(tz=timezone.utc).replace(
+        today_start = datetime.now(tz=UTC).replace(
             hour=0, minute=0, second=0, microsecond=0
         )
         total_cost_today = await self.db.scalar(

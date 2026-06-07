@@ -52,6 +52,11 @@ export interface Trace {
   started_at: string | null;
   finished_at: string | null;
   created_at: string;
+  span_count?: number;
+}
+
+export interface TraceWithSpans extends Trace {
+  spans: Span[];
 }
 
 export interface Span {
@@ -87,6 +92,7 @@ export interface MCPServer {
 // ── Dashboard ─────────────────────────────────────────────────────────────
 export interface DashboardData {
   active_agents: number;
+  active_sessions: number;
   running_tasks: number;
   connected_systems: string[];
   system_health: number;

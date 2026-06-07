@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import AsyncIterator
+from enum import StrEnum
 
 
-class PluginHealthStatus(str, Enum):
+class PluginHealthStatus(StrEnum):
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNREACHABLE = "unreachable"
@@ -82,10 +81,10 @@ class AbstractPlugin(ABC):
 
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
-    async def initialize(self) -> None:
+    async def initialize(self) -> None:  # noqa: B027
         """Called once at startup. Override for connection setup."""
 
-    async def shutdown(self) -> None:
+    async def shutdown(self) -> None:  # noqa: B027
         """Called on graceful shutdown. Override for cleanup."""
 
     # ── Core interface ────────────────────────────────────────────────────────
@@ -108,7 +107,7 @@ class AbstractPlugin(ABC):
         """Return full session detail or None if not found."""
 
     @abstractmethod
-    async def stream_events(
+    def stream_events(
         self,
         session_id: str,
         since_event_id: str | None = None,

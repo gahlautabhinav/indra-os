@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import AsyncIterator
 
 from ...base import (
     AbstractPlugin,
@@ -27,7 +27,8 @@ log = logging.getLogger(__name__)
 _PLUGIN_TYPE = "claude_code"
 
 # Semaphore sized to the default asyncio thread pool (cpu_count + 4, max 32).
-import os as _os
+import os as _os  # noqa: E402
+
 _IO_CONCURRENCY = min(32, (_os.cpu_count() or 4) + 4)
 
 
