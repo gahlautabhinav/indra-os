@@ -1,4 +1,5 @@
 from indra.models.agent import Agent
+from indra.models.goal import Goal
 from indra.models.knowledge import KnowledgeEdge, KnowledgeNode
 from indra.models.mcp_server import MCPServer
 from indra.models.memory import MemoryChunk
@@ -14,6 +15,7 @@ from indra.models.workspace import Workspace
 
 __all__ = [
     "Agent",
+    "Goal",
     "Hook",
     "KnowledgeEdge",
     "KnowledgeNode",

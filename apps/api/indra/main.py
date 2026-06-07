@@ -131,6 +131,10 @@ def _register_routers(app: FastAPI) -> None:
     from indra.domains.aditya.vishnuh.router import router as vishnuh_router
     from indra.domains.aditya.vivasvat.router import router as vivasvat_router
     from indra.domains.indra.router import router as indra_router
+    from indra.domains.prajapati.goals.router import router as goals_router
+    from indra.domains.prajapati.intelligence.router import router as intelligence_router
+    from indra.domains.prajapati.optimization.router import router as optimization_router
+    from indra.domains.prajapati.planning.router import router as planning_router
     from indra.domains.rudra.apanah.router import router as apanah_router
     from indra.domains.rudra.devadattah.router import router as devadattah_router
     from indra.domains.rudra.dhananjayah.router import router as dhananjayah_router
@@ -188,6 +192,11 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(vishnuh_router, prefix="/api/v1", tags=["pervasion"])
     app.include_router(dhata_router, prefix="/api/v1", tags=["foundations"])
     app.include_router(amshah_router, prefix="/api/v1", tags=["shares"])
+    # PRAJAPATI strategy deva — the 33rd
+    app.include_router(goals_router, prefix="/api/v1", tags=["goals"])
+    app.include_router(intelligence_router, prefix="/api/v1", tags=["intelligence"])
+    app.include_router(planning_router, prefix="/api/v1", tags=["planning"])
+    app.include_router(optimization_router, prefix="/api/v1", tags=["optimization"])
     app.include_router(ws_router, tags=["websocket"])
 
     @app.get("/health", tags=["system"])

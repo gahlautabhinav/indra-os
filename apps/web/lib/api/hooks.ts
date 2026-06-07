@@ -43,6 +43,13 @@ export const QK = {
   costTrend: (days?: number) => ["cost", "trend", days] as const,
   workflowDefs: (params?: object) => ["workflows", "aditya", params] as const,
   workflowDef: (id: string) => ["workflows", "aditya", id] as const,
+  // PRAJAPATI
+  goals: (params?: object) => ["goals", params] as const,
+  goal: (id: string) => ["goals", id] as const,
+  planTemplates: ["planning", "templates"] as const,
+  strategyOverview: ["intelligence", "overview"] as const,
+  healthReport: ["intelligence", "health"] as const,
+  optimizationRecs: ["optimization", "recommendations"] as const,
 } as const;
 
 // ── Dashboard ─────────────────────────────────────────────────────────────
@@ -767,5 +774,112 @@ export function useExecuteWorkflowDef() {
     onSuccess: (_data, workflowId) => {
       void qc.invalidateQueries({ queryKey: QK.workflowDef(workflowId) });
     },
+  });
+}
+
+// ── PRAJAPATI — Goals ─────────────────────────────────────────────────────────
+
+export function useGoals(params?: Parameters<typeof indraApi.listGoals>[0]) {
+  return useQuery({
+    queryKey: QK.goals(params),
+    queryFn: () => indraApi.listGoals(params),
+    staleTime: 10_000,
+  });
+}
+
+export function useGoal(goalId: string) {
+  return useQuery({
+    queryKey: QK.goal(goalId),
+    queryFn: () => indraApi.getGoal(goalId),
+    staleTime: 10_000,
+    enabled: !!goalId,
+  });
+}
+
+export function useCreateGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.createGoal,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["goals"] });
+    },
+  });
+}
+
+export function useUpdateGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ goalId, body }: { goalId: string; body: Parameters<typeof indraApi.updateGoal>[1] }) =>
+      indraApi.updateGoal(goalId, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["goals"] });
+    },
+  });
+}
+
+export function useDeleteGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.deleteGoal,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["goals"] });
+    },
+  });
+}
+
+export function useDecomposeGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.decomposeGoal,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["goals"] });
+    },
+  });
+}
+
+// ── PRAJAPATI — Planning ──────────────────────────────────────────────────────
+
+export function usePlanTemplates() {
+  return useQuery({
+    queryKey: QK.planTemplates,
+    queryFn: indraApi.listPlanTemplates,
+    staleTime: 300_000,
+  });
+}
+
+export function useGeneratePlan() {
+  return useMutation({
+    mutationFn: indraApi.generatePlan,
+  });
+}
+
+// ── PRAJAPATI — Intelligence ──────────────────────────────────────────────────
+
+export function useStrategyOverview() {
+  return useQuery({
+    queryKey: QK.strategyOverview,
+    queryFn: indraApi.getStrategyOverview,
+    refetchInterval: 10_000,
+    staleTime: 9_000,
+  });
+}
+
+export function useHealthReport() {
+  return useQuery({
+    queryKey: QK.healthReport,
+    queryFn: indraApi.getHealthReport,
+    refetchInterval: 15_000,
+    staleTime: 14_000,
+  });
+}
+
+// ── PRAJAPATI — Optimization ──────────────────────────────────────────────────
+
+export function useOptimizationRecommendations() {
+  return useQuery({
+    queryKey: QK.optimizationRecs,
+    queryFn: indraApi.getOptimizationRecommendations,
+    refetchInterval: 30_000,
+    staleTime: 29_000,
   });
 }
