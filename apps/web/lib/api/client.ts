@@ -1,10 +1,13 @@
 import axios, { type AxiosInstance } from "axios";
 import type {
   Agent,
+  AgentCostEntry,
   AgentHierarchyNode,
   AgentMessage,
   AgentProfile,
+  CostSummary,
   DashboardData,
+  ExecuteResponse,
   GraphResponse,
   KnowledgeEdge,
   KnowledgeNode,
@@ -17,8 +20,13 @@ import type {
   NotificationListResponse,
   NotificationStats,
   PaginatedResponse,
+  Policy,
+  PolicyCheckResult,
   ProcessInfo,
+  RoleStats,
+  Schedule,
   Session,
+  SessionCostEntry,
   StorageAnalytics,
   StreamEventsResponse,
   StreamListResponse,
@@ -26,6 +34,11 @@ import type {
   TaskStats,
   Trace,
   TraceWithSpans,
+  TrendEntry,
+  TriggerResponse,
+  UserRole,
+  UserRoleRead,
+  WorkflowDef,
   Workspace,
   WorkspaceFileList,
 } from "@indra/types";
@@ -403,4 +416,84 @@ export const indraApi = {
 
   deleteKnowledgeEdge: (edgeId: string) =>
     apiClient.delete(`/knowledge/edges/${edgeId}`).then((r) => r.data),
+
+  // RBAC / Aryamah
+  listUsers: (role?: UserRole) =>
+    apiClient.get<UserRoleRead[]>("/rbac/users", { params: { ...(role ? { role } : {}) } }).then((r) => r.data),
+
+  updateUserRole: (userId: string, role: UserRole) =>
+    apiClient.patch<UserRoleRead>(`/rbac/users/${userId}/role`, { role }).then((r) => r.data),
+
+  getRoleStats: () =>
+    apiClient.get<RoleStats>("/rbac/stats").then((r) => r.data),
+
+  getMyRole: () =>
+    apiClient.get<UserRoleRead>("/rbac/me").then((r) => r.data),
+
+  // Policy Engine / Varunah
+  listPolicies: (params?: { policy_type?: string; enabled_only?: boolean }) =>
+    apiClient.get<Policy[]>("/policies", { params }).then((r) => r.data),
+
+  createPolicy: (body: Omit<Policy, "id" | "created_at">) =>
+    apiClient.post<Policy>("/policies", body).then((r) => r.data),
+
+  updatePolicy: (policyId: string, body: Partial<Omit<Policy, "id" | "created_at">>) =>
+    apiClient.patch<Policy>(`/policies/${policyId}`, body).then((r) => r.data),
+
+  deletePolicy: (policyId: string) =>
+    apiClient.delete(`/policies/${policyId}`).then((r) => r.data),
+
+  checkPolicies: (params: { cost_usd?: number; token_count?: number; agent_id?: string; domain?: string }) =>
+    apiClient.post<PolicyCheckResult>("/policies/check", null, { params }).then((r) => r.data),
+
+  // Scheduler / Savita
+  listSchedules: () =>
+    apiClient.get<Schedule[]>("/schedules").then((r) => r.data),
+
+  createSchedule: (body: Omit<Schedule, "id" | "last_run_at" | "next_run_at" | "created_at">) =>
+    apiClient.post<Schedule>("/schedules", body).then((r) => r.data),
+
+  enableSchedule: (scheduleId: string) =>
+    apiClient.post<Schedule>(`/schedules/${scheduleId}/enable`).then((r) => r.data),
+
+  disableSchedule: (scheduleId: string) =>
+    apiClient.post<Schedule>(`/schedules/${scheduleId}/disable`).then((r) => r.data),
+
+  triggerSchedule: (scheduleId: string) =>
+    apiClient.post<TriggerResponse>(`/schedules/${scheduleId}/trigger`).then((r) => r.data),
+
+  deleteSchedule: (scheduleId: string) =>
+    apiClient.delete(`/schedules/${scheduleId}`).then((r) => r.data),
+
+  // Cost Analytics / Bhagah
+  getCostSummary: (domain?: string) =>
+    apiClient.get<CostSummary>("/cost/summary", { params: { ...(domain ? { domain } : {}) } }).then((r) => r.data),
+
+  getCostByAgent: (params?: { domain?: string; limit?: number }) =>
+    apiClient.get<AgentCostEntry[]>("/cost/by-agent", { params }).then((r) => r.data),
+
+  getCostBySession: (limit?: number) =>
+    apiClient.get<SessionCostEntry[]>("/cost/by-session", { params: { ...(limit ? { limit } : {}) } }).then((r) => r.data),
+
+  getCostTrend: (days?: number) =>
+    apiClient.get<TrendEntry[]>("/cost/trend", { params: { ...(days ? { days } : {}) } }).then((r) => r.data),
+
+  // Workflow Builder / Tvastah
+  listWorkflowDefs: (params?: { status?: string; limit?: number; offset?: number }) =>
+    apiClient.get<WorkflowDef[]>("/workflows/aditya", { params }).then((r) => r.data),
+
+  getWorkflowDef: (workflowId: string) =>
+    apiClient.get<WorkflowDef>(`/workflows/aditya/${workflowId}`).then((r) => r.data),
+
+  createWorkflowDef: (body: { name: string; description?: string; definition: WorkflowDef["definition"] }) =>
+    apiClient.post<WorkflowDef>("/workflows/aditya", body).then((r) => r.data),
+
+  updateWorkflowDef: (workflowId: string, body: Partial<Pick<WorkflowDef, "name" | "description" | "definition" | "status">>) =>
+    apiClient.patch<WorkflowDef>(`/workflows/aditya/${workflowId}`, body).then((r) => r.data),
+
+  deleteWorkflowDef: (workflowId: string) =>
+    apiClient.delete(`/workflows/aditya/${workflowId}`).then((r) => r.data),
+
+  executeWorkflowDef: (workflowId: string) =>
+    apiClient.post<ExecuteResponse>(`/workflows/aditya/${workflowId}/execute`).then((r) => r.data),
 };

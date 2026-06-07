@@ -366,6 +366,133 @@ export interface GraphResponse {
   edge_count: number;
 }
 
+// ── RBAC / Aryamah ───────────────────────────────────────────────────────
+
+export type UserRole = "viewer" | "user" | "admin";
+
+export interface UserRoleRead {
+  id: string;
+  email: string;
+  name: string | null;
+  role: UserRole;
+  created_at: string;
+}
+
+export interface RoleStats {
+  viewer: number;
+  user: number;
+  admin: number;
+  total: number;
+}
+
+// ── Policy Engine / Varunah ───────────────────────────────────────────────
+
+export type PolicyType = "cost_limit" | "token_limit" | "tool_block" | "rate_limit";
+export type PolicyTargetType = "global" | "agent" | "session" | "domain";
+
+export interface Policy {
+  id: string;
+  name: string;
+  description: string | null;
+  policy_type: PolicyType;
+  target_type: PolicyTargetType;
+  target_id: string | null;
+  config: Record<string, unknown>;
+  enabled: boolean;
+  created_at: string;
+}
+
+export interface PolicyCheckResult {
+  allowed: boolean;
+  violations: Array<{ policy_id: string; policy_name: string; reason: string }>;
+}
+
+// ── Scheduler / Savita ────────────────────────────────────────────────────
+
+export type TriggerType = "interval" | "cron" | "once";
+export type ActionType = "notify" | "spawn_agent";
+
+export interface Schedule {
+  id: string;
+  name: string;
+  description: string | null;
+  trigger_type: TriggerType;
+  trigger_config: Record<string, unknown>;
+  action_type: ActionType;
+  action_config: Record<string, unknown>;
+  enabled: boolean;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  created_at: string;
+}
+
+export interface TriggerResponse {
+  schedule_id: string;
+  triggered_at: string;
+  action_type: string;
+}
+
+// ── Cost Analytics / Bhagah ───────────────────────────────────────────────
+
+export interface CostSummary {
+  total_cost_usd: number;
+  total_tokens: number;
+  agent_count: number;
+  avg_cost_per_agent: number;
+  avg_tokens_per_agent: number;
+}
+
+export interface AgentCostEntry {
+  agent_id: string;
+  agent_name: string;
+  domain: string;
+  cost_usd: number;
+  token_count: number;
+  status: string;
+  created_at: string;
+}
+
+export interface SessionCostEntry {
+  session_id: string;
+  cost_usd: number;
+  token_count: number;
+  agent_count: number;
+}
+
+export interface TrendEntry {
+  period: string;
+  cost_usd: number;
+  token_count: number;
+  agent_count: number;
+}
+
+// ── Workflow Builder / Tvastah ────────────────────────────────────────────
+
+export type WorkflowStatus = "draft" | "active" | "archived";
+
+export interface WorkflowDef {
+  id: string;
+  name: string;
+  description: string | null;
+  definition: { steps: WorkflowStep[] };
+  status: WorkflowStatus;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkflowStep {
+  id: string;
+  type: "notify" | "create_task" | string;
+  config: Record<string, unknown>;
+}
+
+export interface ExecuteResponse {
+  workflow_id: string;
+  steps_executed: number;
+  results: Array<{ step_id: string; type: string; status: string; id?: string; error?: string; reason?: string }>;
+}
+
 // ── API ───────────────────────────────────────────────────────────────────
 export interface PaginatedResponse<T> {
   items: T[];

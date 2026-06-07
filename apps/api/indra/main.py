@@ -46,9 +46,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from indra.core.poller import poller
     poller.start()
 
+    # Start APScheduler for Savita (ADITYA scheduler deva).
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+    from indra.database import AsyncSessionLocal
+    from indra.domains.aditya.savita.service import SavitaService, set_scheduler
+
+    scheduler = AsyncIOScheduler()
+    set_scheduler(scheduler)
+    scheduler.start()
+    async with AsyncSessionLocal() as db:
+        n = await SavitaService.load_all(db)
+    logger.info("Savita scheduler started", jobs_loaded=n)
+
     logger.info("INDRA ready — 33 Devas online")
     yield
 
+    scheduler.shutdown(wait=False)
     poller.stop()
     await plugin_manager.shutdown_all()
     await close_redis()
@@ -104,7 +118,18 @@ def create_app() -> FastAPI:
 
 def _register_routers(app: FastAPI) -> None:
     from indra.core.auth import router as auth_router
+    from indra.domains.aditya.amshah.router import router as amshah_router
+    from indra.domains.aditya.aryamah.router import router as aryamah_router
+    from indra.domains.aditya.bhagah.router import router as bhagah_router
+    from indra.domains.aditya.dhata.router import router as dhata_router
+    from indra.domains.aditya.mitrah.router import router as mitrah_router
+    from indra.domains.aditya.pushanah.router import router as pushanah_router
+    from indra.domains.aditya.savita.router import router as savita_router
     from indra.domains.aditya.smriti.router import router as memory_router
+    from indra.domains.aditya.tvastah.router import router as tvastah_router
+    from indra.domains.aditya.varunah.router import router as varunah_router
+    from indra.domains.aditya.vishnuh.router import router as vishnuh_router
+    from indra.domains.aditya.vivasvat.router import router as vivasvat_router
     from indra.domains.indra.router import router as indra_router
     from indra.domains.rudra.apanah.router import router as apanah_router
     from indra.domains.rudra.devadattah.router import router as devadattah_router
@@ -151,6 +176,18 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(agnih_router, prefix="/api/v1", tags=["execution"])
     app.include_router(vayuh_router, prefix="/api/v1", tags=["communication"])
     app.include_router(akasah_router, prefix="/api/v1", tags=["context"])
+    # ADITYA governance devas
+    app.include_router(aryamah_router, prefix="/api/v1", tags=["rbac"])
+    app.include_router(varunah_router, prefix="/api/v1", tags=["policies"])
+    app.include_router(savita_router, prefix="/api/v1", tags=["schedules"])
+    app.include_router(bhagah_router, prefix="/api/v1", tags=["cost"])
+    app.include_router(tvastah_router, prefix="/api/v1", tags=["workflows-builder"])
+    app.include_router(mitrah_router, prefix="/api/v1", tags=["alliances"])
+    app.include_router(pushanah_router, prefix="/api/v1", tags=["discovery"])
+    app.include_router(vivasvat_router, prefix="/api/v1", tags=["telemetry"])
+    app.include_router(vishnuh_router, prefix="/api/v1", tags=["pervasion"])
+    app.include_router(dhata_router, prefix="/api/v1", tags=["foundations"])
+    app.include_router(amshah_router, prefix="/api/v1", tags=["shares"])
     app.include_router(ws_router, tags=["websocket"])
 
     @app.get("/health", tags=["system"])

@@ -31,6 +31,18 @@ export const QK = {
   streams: ["events", "streams"] as const,
   streamEvents: (name: string) => ["events", "stream", name] as const,
   knowledgeGraph: ["knowledge", "graph"] as const,
+  // ADITYA governance
+  rbacUsers: (role?: string) => ["rbac", "users", role] as const,
+  rbacStats: ["rbac", "stats"] as const,
+  rbacMe: ["rbac", "me"] as const,
+  policies: (params?: object) => ["policies", params] as const,
+  schedules: ["schedules"] as const,
+  costSummary: (domain?: string) => ["cost", "summary", domain] as const,
+  costByAgent: (params?: object) => ["cost", "by-agent", params] as const,
+  costBySession: ["cost", "by-session"] as const,
+  costTrend: (days?: number) => ["cost", "trend", days] as const,
+  workflowDefs: (params?: object) => ["workflows", "aditya", params] as const,
+  workflowDef: (id: string) => ["workflows", "aditya", id] as const,
 } as const;
 
 // ── Dashboard ─────────────────────────────────────────────────────────────
@@ -525,5 +537,235 @@ export function useDeleteKnowledgeEdge() {
 export function useSearchKnowledgeNodes() {
   return useMutation({
     mutationFn: indraApi.searchKnowledgeNodes,
+  });
+}
+
+// ── Aryamah — RBAC ───────────────────────────────────────────────────────────
+
+export function useRbacUsers(role?: string) {
+  return useQuery({
+    queryKey: QK.rbacUsers(role),
+    queryFn: () => indraApi.listUsers(role as Parameters<typeof indraApi.listUsers>[0]),
+    staleTime: 15_000,
+  });
+}
+
+export function useRbacStats() {
+  return useQuery({
+    queryKey: QK.rbacStats,
+    queryFn: indraApi.getRoleStats,
+    staleTime: 15_000,
+  });
+}
+
+export function useMyRole() {
+  return useQuery({
+    queryKey: QK.rbacMe,
+    queryFn: indraApi.getMyRole,
+    staleTime: 60_000,
+  });
+}
+
+export function useUpdateUserRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: Parameters<typeof indraApi.updateUserRole>[1] }) =>
+      indraApi.updateUserRole(userId, role),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["rbac"] });
+    },
+  });
+}
+
+// ── Varunah — Policy Engine ───────────────────────────────────────────────────
+
+export function usePolicies(params?: Parameters<typeof indraApi.listPolicies>[0]) {
+  return useQuery({
+    queryKey: QK.policies(params),
+    queryFn: () => indraApi.listPolicies(params),
+    staleTime: 15_000,
+  });
+}
+
+export function useCreatePolicy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.createPolicy,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["policies"] });
+    },
+  });
+}
+
+export function useUpdatePolicy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ policyId, body }: { policyId: string; body: Parameters<typeof indraApi.updatePolicy>[1] }) =>
+      indraApi.updatePolicy(policyId, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["policies"] });
+    },
+  });
+}
+
+export function useDeletePolicy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.deletePolicy,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["policies"] });
+    },
+  });
+}
+
+export function useCheckPolicies() {
+  return useMutation({
+    mutationFn: indraApi.checkPolicies,
+  });
+}
+
+// ── Savita — Scheduler ────────────────────────────────────────────────────────
+
+export function useSchedules() {
+  return useQuery({
+    queryKey: QK.schedules,
+    queryFn: indraApi.listSchedules,
+    refetchInterval: 15_000,
+    staleTime: 14_000,
+  });
+}
+
+export function useCreateSchedule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.createSchedule,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QK.schedules });
+    },
+  });
+}
+
+export function useToggleSchedule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ scheduleId, enabled }: { scheduleId: string; enabled: boolean }) =>
+      enabled ? indraApi.enableSchedule(scheduleId) : indraApi.disableSchedule(scheduleId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QK.schedules });
+    },
+  });
+}
+
+export function useTriggerSchedule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.triggerSchedule,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QK.schedules });
+    },
+  });
+}
+
+export function useDeleteSchedule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.deleteSchedule,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QK.schedules });
+    },
+  });
+}
+
+// ── Bhagah — Cost Analytics ───────────────────────────────────────────────────
+
+export function useCostSummary(domain?: string) {
+  return useQuery({
+    queryKey: QK.costSummary(domain),
+    queryFn: () => indraApi.getCostSummary(domain),
+    staleTime: 30_000,
+  });
+}
+
+export function useCostByAgent(params?: Parameters<typeof indraApi.getCostByAgent>[0]) {
+  return useQuery({
+    queryKey: QK.costByAgent(params),
+    queryFn: () => indraApi.getCostByAgent(params),
+    staleTime: 30_000,
+  });
+}
+
+export function useCostBySession() {
+  return useQuery({
+    queryKey: QK.costBySession,
+    queryFn: () => indraApi.getCostBySession(),
+    staleTime: 30_000,
+  });
+}
+
+export function useCostTrend(days?: number) {
+  return useQuery({
+    queryKey: QK.costTrend(days),
+    queryFn: () => indraApi.getCostTrend(days),
+    staleTime: 30_000,
+  });
+}
+
+// ── Tvastah — Workflow Builder ────────────────────────────────────────────────
+
+export function useWorkflowDefs(params?: Parameters<typeof indraApi.listWorkflowDefs>[0]) {
+  return useQuery({
+    queryKey: QK.workflowDefs(params),
+    queryFn: () => indraApi.listWorkflowDefs(params),
+    staleTime: 15_000,
+  });
+}
+
+export function useWorkflowDef(workflowId: string) {
+  return useQuery({
+    queryKey: QK.workflowDef(workflowId),
+    queryFn: () => indraApi.getWorkflowDef(workflowId),
+    staleTime: 15_000,
+    enabled: !!workflowId,
+  });
+}
+
+export function useCreateWorkflowDef() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.createWorkflowDef,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["workflows", "aditya"] });
+    },
+  });
+}
+
+export function useUpdateWorkflowDef() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ workflowId, body }: { workflowId: string; body: Parameters<typeof indraApi.updateWorkflowDef>[1] }) =>
+      indraApi.updateWorkflowDef(workflowId, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["workflows", "aditya"] });
+    },
+  });
+}
+
+export function useDeleteWorkflowDef() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.deleteWorkflowDef,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["workflows", "aditya"] });
+    },
+  });
+}
+
+export function useExecuteWorkflowDef() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.executeWorkflowDef,
+    onSuccess: (_data, workflowId) => {
+      void qc.invalidateQueries({ queryKey: QK.workflowDef(workflowId) });
+    },
   });
 }
