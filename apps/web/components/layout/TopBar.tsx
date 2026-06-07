@@ -1,8 +1,9 @@
 "use client";
 
-import { Bell, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useUIStore } from "@/lib/store/uiStore";
 import { CivilizationPulse } from "@/components/civilization/CivilizationPulse";
+import { NotificationPanel } from "@/components/notifications/NotificationPanel";
 
 export function TopBar() {
   const openCommandEther = useUIStore((s) => s.openCommandEther);
@@ -35,9 +36,7 @@ export function TopBar() {
       {/* Right cluster */}
       <div className="flex items-center gap-3">
         <CivilizationPulse />
-        <button className="relative rounded p-1.5 text-ink-tertiary transition-colors hover:bg-surface-2 hover:text-ink-secondary">
-          <Bell className="h-4 w-4" />
-        </button>
+        <NotificationPanel />
         <div className="h-7 w-7 rounded-full bg-surface-3 border border-hairline flex items-center justify-center">
           <span className="text-xs font-mono text-ink-secondary">A</span>
         </div>
