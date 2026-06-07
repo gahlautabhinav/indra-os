@@ -89,7 +89,7 @@ export function MetricTile({
       </div>
 
       {delta !== undefined && (
-        <DeltaIndicator delta={delta} deltaLabel={deltaLabel} />
+        <DeltaIndicator delta={delta} {...(deltaLabel !== undefined ? { deltaLabel } : {})} />
       )}
     </div>
   );

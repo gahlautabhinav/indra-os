@@ -127,7 +127,7 @@ export default function SuryahPage() {
   const { data: stats, isLoading: statsLoading } = useTraceStats();
   const { data: tracesData, isLoading: tracesLoading } = useTraces({
     limit: 50,
-    status: statusFilter,
+    ...(statusFilter !== undefined ? { status: statusFilter } : {}),
   });
   const { data: selectedTrace, isLoading: traceLoading } = useTrace(selectedTraceId);
 

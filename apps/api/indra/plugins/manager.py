@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Iterator
+from collections.abc import Iterator
 
 from .base import AbstractPlugin, PluginHealthStatus, SessionInfo
 

@@ -158,26 +158,12 @@ export function VivartaTrace({ trace, compact = false }: VivartaTraceProps) {
     return <TraceStripRow trace={trace} />;
   }
 
-  if (!trace.spans.length) {
-    return (
-      <div
-        className="rounded-[8px] border border-hairline bg-surface-1 p-8 text-center"
-        style={{ borderTop: "2px solid #d4843a" }}
-      >
-        <p className="label-caps text-ink-ghost mb-1">No Spans</p>
-        <p className="text-xs text-ink-tertiary">
-          This trace has no recorded spans yet.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div
       className="rounded-[12px] border border-hairline bg-surface-1 overflow-hidden"
       style={{ borderTop: "2px solid #d4843a" }}
     >
-      {/* Panel header */}
+      {/* Panel header — always visible */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-hairline bg-surface-2">
         <div className="flex items-center gap-3">
           <span className="label-caps text-ink-tertiary" style={{ color: "#d4843a" }}>
@@ -221,31 +207,43 @@ export function VivartaTrace({ trace, compact = false }: VivartaTraceProps) {
         </div>
       </div>
 
-      {/* Column headers */}
-      <div className="flex items-center gap-0 px-4 py-1.5 border-b border-hairline">
-        <div className="shrink-0" style={{ width: "220px" }}>
-          <span className="label-caps text-ink-ghost">Span</span>
+      {/* Body: empty state or span waterfall */}
+      {!trace.spans.length ? (
+        <div className="p-8 text-center">
+          <p className="label-caps text-ink-ghost mb-1">No Spans</p>
+          <p className="text-xs text-ink-tertiary">
+            This trace has no recorded spans yet.
+          </p>
         </div>
-        <div className="flex-1 px-3">
-          <TimelineRuler totalMs={totalMs} />
-        </div>
-        <div className="shrink-0 text-right" style={{ width: "56px" }}>
-          <span className="label-caps text-ink-ghost">Duration</span>
-        </div>
-      </div>
+      ) : (
+        <>
+          {/* Column headers */}
+          <div className="flex items-center gap-0 px-4 py-1.5 border-b border-hairline">
+            <div className="shrink-0" style={{ width: "220px" }}>
+              <span className="label-caps text-ink-ghost">Span</span>
+            </div>
+            <div className="flex-1 px-3">
+              <TimelineRuler totalMs={totalMs} />
+            </div>
+            <div className="shrink-0 text-right" style={{ width: "56px" }}>
+              <span className="label-caps text-ink-ghost">Duration</span>
+            </div>
+          </div>
 
-      {/* Span rows */}
-      <div className="relative divide-y divide-hairline/40">
-        {flatSpans.map((span) => (
-          <TraceSpanRow
-            key={span.span_id}
-            span={span}
-            depth={span.depth}
-            totalMs={totalMs}
-            minStartMs={minMs}
-          />
-        ))}
-      </div>
+          {/* Span rows */}
+          <div className="relative divide-y divide-hairline/40">
+            {flatSpans.map((span) => (
+              <TraceSpanRow
+                key={span.span_id}
+                span={span}
+                depth={span.depth}
+                totalMs={totalMs}
+                minStartMs={minMs}
+              />
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Footer: started_at timestamp */}
       {trace.started_at && (

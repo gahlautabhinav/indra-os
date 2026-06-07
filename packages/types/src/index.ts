@@ -92,6 +92,7 @@ export interface MCPServer {
 // ── Dashboard ─────────────────────────────────────────────────────────────
 export interface DashboardData {
   active_agents: number;
+  active_sessions: number;
   running_tasks: number;
   connected_systems: string[];
   system_health: number;

@@ -40,7 +40,7 @@ export function CivilizationPulse() {
       {matrixOpen && (
         <DevaStatusMatrix
           onClose={() => setMatrixOpen(false)}
-          pluginStatuses={pluginHealth?.statuses}
+          {...(pluginHealth?.statuses !== undefined ? { pluginStatuses: pluginHealth.statuses } : {})}
         />
       )}
     </>

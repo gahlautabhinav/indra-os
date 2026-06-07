@@ -1,5 +1,5 @@
-from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, Request, status
@@ -85,11 +85,11 @@ def create_app() -> FastAPI:
 
 
 def _register_routers(app: FastAPI) -> None:
+    from indra.core.auth import router as auth_router
     from indra.domains.indra.router import router as indra_router
     from indra.domains.vasu.somah.router import router as mcp_router
     from indra.domains.vasu.suryah.router import router as trace_router
     from indra.websockets.router import router as ws_router
-    from indra.core.auth import router as auth_router
 
     app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
     app.include_router(indra_router, prefix="/api/v1", tags=["indra"])

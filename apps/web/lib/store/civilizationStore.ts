@@ -41,7 +41,7 @@ export const useCivilizationStore = create<CivilizationState>((set, get) => ({
     const scores = devas.map((d) =>
       d.status === "healthy" ? 100 : d.status === "degraded" ? 60 : d.status === "critical" ? 0 : 50
     );
-    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const avg = scores.reduce<number>((a, b) => a + b, 0) / scores.length;
     set({ overallHealth: Math.round(avg) });
   },
 }));

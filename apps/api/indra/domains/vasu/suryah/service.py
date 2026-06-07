@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import statistics
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from sqlalchemy import func, select
@@ -133,7 +133,7 @@ class TraceService:
 
         spans = sorted(
             trace.spans,
-            key=lambda s: (s.started_at or datetime.min.replace(tzinfo=timezone.utc)),
+            key=lambda s: (s.started_at or datetime.min.replace(tzinfo=UTC)),
         )
         return TraceDetailResponse(
             **_trace_to_response(trace, len(spans)).model_dump(),
@@ -151,7 +151,7 @@ class TraceService:
         trace = result.scalar_one_or_none()
         created = trace is None
 
-        _now = datetime.now(timezone.utc)
+        _now = datetime.now(UTC)
 
         if created:
             trace = Trace(
@@ -165,9 +165,11 @@ class TraceService:
             db.add(trace)
         else:
             if request.name:
-                trace.name = request.name
+                trace.name = request.name  # type: ignore[union-attr]
             if request.status:
-                trace.status = request.status
+                trace.status = request.status  # type: ignore[union-attr]
+
+        assert trace is not None
 
         # Determine trace timing from spans.
         if request.spans:

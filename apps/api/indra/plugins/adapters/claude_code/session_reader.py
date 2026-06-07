@@ -23,9 +23,9 @@ import logging
 import os
 import re
 import time
-from datetime import datetime, timezone
+from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterator
 
 log = logging.getLogger(__name__)
 
@@ -131,7 +131,7 @@ def _parse_ts(ts: str) -> datetime | None:
     try:
         dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         return dt
     except ValueError:
         return None
@@ -189,11 +189,7 @@ def list_session_paths(project_dir: Path | None = None) -> list[Path]:
     if not base.exists():
         return []
     try:
-        if project_dir:
-            paths = list(base.glob("*.jsonl"))
-        else:
-            # Two-level: <projects>/<project-dir>/<session>.jsonl
-            paths = list(base.glob("*/*.jsonl"))
+        paths = list(base.glob("*.jsonl")) if project_dir else list(base.glob("*/*.jsonl"))
         paths.sort(key=lambda p: _safe_mtime(p), reverse=True)
         return paths
     except OSError as exc:
@@ -226,14 +222,11 @@ def read_session_summary(jsonl_path: Path) -> dict:
     event_count = 0
     min_ts: datetime | None = None
     max_ts: datetime | None = None
-    last_raw_ts = ""
-
     # Stream — do NOT materialize the full list.
     for raw in _iter_jsonl(jsonl_path):
         ts_str = raw.get("timestamp", "")
         ts = _parse_ts(ts_str)
         if ts:
-            last_raw_ts = ts_str
             if min_ts is None or ts < min_ts:
                 min_ts = ts
             if max_ts is None or ts > max_ts:
