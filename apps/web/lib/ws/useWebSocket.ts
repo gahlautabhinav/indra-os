@@ -20,8 +20,12 @@ export function useWebSocket() {
 
     switch (event.event_type) {
       case "agent.status_changed": {
-        const { agent_id, status } = event.data as { agent_id: string; status: string };
-        updateAgent(agent_id, { status: status as never });
+        const d = event.data as { agent_id?: string; session_id?: string; new_status?: string; status?: string };
+        const targetId = d.agent_id ?? d.session_id;
+        const newStatus = d.new_status ?? d.status;
+        if (targetId && newStatus) {
+          updateAgent(targetId, { status: newStatus as never });
+        }
         break;
       }
       case "session.created":
@@ -29,7 +33,7 @@ export function useWebSocket() {
       case "trace.completed":
       case "mcp_server.status_changed":
       case "alert.created":
-        // Additional store updates wired in Phase 1
+        // Handled via TanStack Query refetch on 5s interval.
         break;
     }
   }, []);
