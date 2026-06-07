@@ -88,6 +88,12 @@ export const apiClient = createClient();
 // ── Typed API helpers ─────────────────────────────────────────────────────────
 
 export const indraApi = {
+  // Auth
+  login: (email: string, password: string) =>
+    apiClient
+      .post<{ access_token: string; token_type: string; expires_in: number }>("/auth/login", { email, password })
+      .then((r) => r.data),
+
   // Dashboard
   getDashboard: () =>
     apiClient.get<DashboardData>("/dashboard").then((r) => r.data),
