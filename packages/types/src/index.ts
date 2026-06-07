@@ -493,6 +493,105 @@ export interface ExecuteResponse {
   results: Array<{ step_id: string; type: string; status: string; id?: string; error?: string; reason?: string }>;
 }
 
+// ── PRAJAPATI Strategy Layer ──────────────────────────────────────────────
+
+export type GoalPriority = 0 | 1 | 2 | 3;
+export type GoalStatus = "pending" | "planning" | "active" | "completed" | "failed";
+
+export interface Goal {
+  id: string;
+  title: string;
+  description: string | null;
+  target_outcome: string;
+  priority: GoalPriority;
+  status: GoalStatus;
+  definition: { steps: GoalStep[] };
+  progress_pct: number;
+  agent_count: number;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface GoalStep {
+  id: string;
+  type: "task" | "agent" | "notify" | string;
+  title: string;
+  config: Record<string, unknown>;
+}
+
+export interface DecomposeResponse {
+  goal_id: string;
+  steps_created: number;
+  task_ids: string[];
+}
+
+export interface PlanTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: "research" | "build" | "ops" | "monitor" | string;
+  steps: GoalStep[];
+}
+
+export interface GeneratePlanResponse {
+  goal_title: string;
+  template_id: string;
+  definition: { steps: GoalStep[] };
+  recommended_agents: number;
+  estimated_tasks: number;
+}
+
+export interface DomainHealth {
+  domain: string;
+  status: string;
+  active_count: number;
+  notes: string;
+}
+
+export interface StrategyOverview {
+  total_agents: number;
+  active_agents: number;
+  total_sessions: number;
+  running_tasks: number;
+  completed_tasks: number;
+  failed_tasks: number;
+  total_cost_usd: number;
+  total_tokens: number;
+  active_goals: number;
+  pending_goals: number;
+  unread_alerts: number;
+  memory_chunks: number;
+  knowledge_nodes: number;
+  active_schedules: number;
+  active_policies: number;
+  domain_health: DomainHealth[];
+}
+
+export interface SystemHealthReport {
+  overall_status: "healthy" | "degraded" | "critical";
+  checks: Record<string, string>;
+  recommendations: string[];
+}
+
+export interface Recommendation {
+  id: string;
+  category: "cost" | "performance" | "reliability" | "governance" | string;
+  severity: "info" | "warning" | "critical";
+  title: string;
+  description: string;
+  action: string;
+  affected_domain: string;
+  estimated_savings: string | null;
+}
+
+export interface OptimizationReport {
+  total_recommendations: number;
+  critical: number;
+  warnings: number;
+  info: number;
+  recommendations: Recommendation[];
+}
+
 // ── API ───────────────────────────────────────────────────────────────────
 export interface PaginatedResponse<T> {
   items: T[];

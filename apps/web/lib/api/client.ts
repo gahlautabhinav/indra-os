@@ -7,7 +7,11 @@ import type {
   AgentProfile,
   CostSummary,
   DashboardData,
+  DecomposeResponse,
   ExecuteResponse,
+  GeneratePlanResponse,
+  Goal,
+  GoalPriority,
   GraphResponse,
   KnowledgeEdge,
   KnowledgeNode,
@@ -19,7 +23,9 @@ import type {
   Notification,
   NotificationListResponse,
   NotificationStats,
+  OptimizationReport,
   PaginatedResponse,
+  PlanTemplate,
   Policy,
   PolicyCheckResult,
   ProcessInfo,
@@ -28,8 +34,10 @@ import type {
   Session,
   SessionCostEntry,
   StorageAnalytics,
+  StrategyOverview,
   StreamEventsResponse,
   StreamListResponse,
+  SystemHealthReport,
   Task,
   TaskStats,
   Trace,
@@ -496,4 +504,41 @@ export const indraApi = {
 
   executeWorkflowDef: (workflowId: string) =>
     apiClient.post<ExecuteResponse>(`/workflows/aditya/${workflowId}/execute`).then((r) => r.data),
+
+  // Goals / PRAJAPATI
+  listGoals: (params?: { status?: string; priority?: number; limit?: number; offset?: number }) =>
+    apiClient.get<Goal[]>("/goals", { params }).then((r) => r.data),
+
+  getGoal: (goalId: string) =>
+    apiClient.get<Goal>(`/goals/${goalId}`).then((r) => r.data),
+
+  createGoal: (body: { title: string; description?: string; target_outcome: string; priority?: GoalPriority }) =>
+    apiClient.post<Goal>("/goals", body).then((r) => r.data),
+
+  updateGoal: (goalId: string, body: Partial<Pick<Goal, "title" | "description" | "target_outcome" | "priority" | "status">>) =>
+    apiClient.patch<Goal>(`/goals/${goalId}`, body).then((r) => r.data),
+
+  deleteGoal: (goalId: string) =>
+    apiClient.delete(`/goals/${goalId}`).then((r) => r.data),
+
+  decomposeGoal: (goalId: string) =>
+    apiClient.post<DecomposeResponse>(`/goals/${goalId}/decompose`).then((r) => r.data),
+
+  // Planning / PRAJAPATI
+  listPlanTemplates: () =>
+    apiClient.get<PlanTemplate[]>("/planning/templates").then((r) => r.data),
+
+  generatePlan: (body: { template_id: string; goal_title: string; goal_description?: string; variables?: Record<string, string> }) =>
+    apiClient.post<GeneratePlanResponse>("/planning/generate", body).then((r) => r.data),
+
+  // Intelligence / PRAJAPATI
+  getStrategyOverview: () =>
+    apiClient.get<StrategyOverview>("/intelligence/overview").then((r) => r.data),
+
+  getHealthReport: () =>
+    apiClient.get<SystemHealthReport>("/intelligence/health").then((r) => r.data),
+
+  // Optimization / PRAJAPATI
+  getOptimizationRecommendations: () =>
+    apiClient.get<OptimizationReport>("/optimization/recommendations").then((r) => r.data),
 };
