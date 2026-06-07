@@ -1,0 +1,190 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ── Canvas & Surface Ladder ── */
+    --indra-canvas: #07090d;
+    --indra-surface-1: #0c1018;
+    --indra-surface-2: #111722;
+    --indra-surface-3: #16202c;
+    --indra-surface-4: #1c2836;
+    --indra-surface-5: #212f40;
+
+    /* ── Hairlines ── */
+    --indra-hairline: #263445;
+    --indra-hairline-bright: #334455;
+
+    /* ── Ink (Text) ── */
+    --indra-ink-primary: #e8eef4;
+    --indra-ink-secondary: #a8b8c8;
+    --indra-ink-tertiary: #637585;
+    --indra-ink-ghost: #3d5060;
+
+    /* ── Global Accent (INDRA domain = cyan-gold) ── */
+    --indra-accent: #4dc8c8;
+    --indra-accent-dim: rgba(77, 200, 200, 0.12);
+    --indra-accent-focus: rgba(77, 200, 200, 0.28);
+    --indra-accent-hover: #5dd8d8;
+
+    /* ── Domain Accents ── */
+    --domain-indra: #4dc8c8;
+    --domain-indra-dim: rgba(77, 200, 200, 0.12);
+    --domain-vasu: #d4843a;
+    --domain-vasu-dim: rgba(212, 132, 58, 0.12);
+    --domain-rudra: #c44450;
+    --domain-rudra-dim: rgba(196, 68, 80, 0.12);
+    --domain-aditya: #3a80d4;
+    --domain-aditya-dim: rgba(58, 128, 212, 0.12);
+    --domain-prajapati: #9a44d4;
+    --domain-prajapati-dim: rgba(154, 68, 212, 0.12);
+
+    /* ── State Colors ── */
+    --state-healthy: #2ab870;
+    --state-healthy-dim: rgba(42, 184, 112, 0.12);
+    --state-degraded: #e0a030;
+    --state-degraded-dim: rgba(224, 160, 48, 0.12);
+    --state-critical: #e04040;
+    --state-critical-dim: rgba(224, 64, 64, 0.12);
+    --state-idle: #4080a0;
+    --state-idle-dim: rgba(64, 128, 160, 0.12);
+    --state-dead: #3d5060;
+
+    /* ── Typography ── */
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+    /* ── Shadows (floating layers only) ── */
+    --shadow-floating: 0 8px 32px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
+    --shadow-command-ether: 0 24px 64px rgba(0, 0, 0, 0.8), 0 0 0 1px var(--indra-hairline-bright);
+
+    /* ── Layout ── */
+    --sigil-bar-width-collapsed: 64px;
+    --sigil-bar-width-expanded: 240px;
+    --topbar-height: 48px;
+
+    /* ── Animation ── */
+    --transition-fast: 120ms ease;
+    --transition-base: 200ms ease;
+    --transition-slow: 320ms ease;
+  }
+
+  * {
+    border-color: var(--indra-hairline);
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv01", "cv02", "cv03", "cv04";
+  }
+
+  body {
+    background-color: var(--indra-canvas);
+    color: var(--indra-ink-primary);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* All numeric data in mono with tabular figures */
+  .mono,
+  [data-metric],
+  [data-timestamp],
+  code,
+  pre,
+  kbd {
+    font-family: var(--font-mono);
+    font-feature-settings: "tnum", "ss03";
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--indra-hairline-bright);
+    border-radius: 2px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--indra-ink-ghost);
+  }
+
+  /* Selection */
+  ::selection {
+    background: var(--indra-accent-dim);
+    color: var(--indra-ink-primary);
+  }
+}
+
+@layer components {
+  /* Domain panel — 2px top border signals domain ownership */
+  .domain-panel {
+    @apply rounded-md border border-hairline bg-surface-1;
+    position: relative;
+  }
+  .domain-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 6px 6px 0 0;
+  }
+  .domain-panel[data-domain="indra"]::before { background: var(--domain-indra); }
+  .domain-panel[data-domain="vasu"]::before { background: var(--domain-vasu); }
+  .domain-panel[data-domain="rudra"]::before { background: var(--domain-rudra); }
+  .domain-panel[data-domain="aditya"]::before { background: var(--domain-aditya); }
+  .domain-panel[data-domain="prajapati"]::before { background: var(--domain-prajapati); }
+
+  /* Metric display — large mono numbers */
+  .metric-value {
+    font-family: var(--font-mono);
+    font-feature-settings: "tnum";
+    font-size: clamp(24px, 4vw, 40px);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    color: var(--indra-ink-primary);
+  }
+
+  /* Status pills */
+  .status-pill {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium;
+    font-family: var(--font-mono);
+  }
+  .status-pill[data-status="running"] { background: var(--state-healthy-dim); color: var(--state-healthy); }
+  .status-pill[data-status="active"] { background: var(--state-healthy-dim); color: var(--state-healthy); }
+  .status-pill[data-status="idle"] { background: var(--state-idle-dim); color: var(--state-idle); }
+  .status-pill[data-status="error"] { background: var(--state-critical-dim); color: var(--state-critical); }
+  .status-pill[data-status="degraded"] { background: var(--state-degraded-dim); color: var(--state-degraded); }
+  .status-pill[data-status="dead"] { background: transparent; color: var(--state-dead); }
+  .status-pill[data-status="completed"] { background: transparent; color: var(--indra-ink-tertiary); }
+
+  /* Command Ether overlay */
+  .command-ether-overlay {
+    background: rgba(7, 9, 13, 0.8);
+    backdrop-filter: blur(12px);
+  }
+
+  /* Hairline divider */
+  .divider {
+    @apply border-t border-hairline;
+  }
+
+  /* Label caps — section headers */
+  .label-caps {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--indra-ink-tertiary);
+  }
+}
