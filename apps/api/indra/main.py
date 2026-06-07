@@ -2,14 +2,22 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI, Request, status
+from fastapi import Depends, FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from indra.config import settings
 from indra.core.exceptions import IndraException
+from indra.core.rate_limit import limiter
 from indra.core.telemetry import setup_telemetry
-from indra.database import engine
+from indra.database import engine, get_db
+from indra.middleware.logging import RequestLoggingMiddleware
+from indra.middleware.security import SecurityHeadersMiddleware
 from indra.redis import close_redis, get_redis
 
 logger = structlog.get_logger()
@@ -20,6 +28,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from indra.plugins import ClaudeCodePlugin, plugin_manager
 
     logger.info("INDRA starting", environment=settings.environment)
+
+    settings.validate_production_secrets()
 
     setup_telemetry(app)
 
@@ -56,6 +66,14 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Rate limiter state
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+
+    # Middleware order: outermost first (processed top-to-bottom on request, bottom-to-top on response)
+    app.add_middleware(RequestLoggingMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(SlowAPIMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
@@ -102,8 +120,29 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(ws_router, tags=["websocket"])
 
     @app.get("/health", tags=["system"])
-    async def health() -> dict:
-        return {"status": "ok", "version": "0.1.0", "devas": 33}
+    async def health(db: AsyncSession = Depends(get_db)) -> dict:
+        checks: dict[str, str] = {}
+
+        try:
+            await db.execute(text("SELECT 1"))
+            checks["db"] = "ok"
+        except Exception:
+            checks["db"] = "error"
+
+        try:
+            redis = await get_redis()
+            await redis.ping()
+            checks["redis"] = "ok"
+        except Exception:
+            checks["redis"] = "error"
+
+        all_ok = all(v == "ok" for v in checks.values())
+        return {
+            "status": "ok" if all_ok else "degraded",
+            "version": "0.1.0",
+            "devas": 33,
+            "checks": checks,
+        }
 
 
 app = create_app()
