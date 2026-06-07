@@ -43,7 +43,7 @@ const DOMAINS = [
     label: "ADITYA",
     subLabel: "आदित्य",
     icon: ShieldIcon,
-    href: "/aditya/dhata",
+    href: "/aditya/smriti",
     color: "var(--domain-aditya)",
   },
   {

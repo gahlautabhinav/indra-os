@@ -13,6 +13,8 @@ export const QK = {
   traces: (params?: object) => ["traces", params] as const,
   trace: (id: string) => ["traces", id] as const,
   traceStats: ["traces", "stats"] as const,
+  memoryChunks: (params?: object) => ["memory", "chunks", params] as const,
+  memoryStats: ["memory", "stats"] as const,
 } as const;
 
 // ── Dashboard ─────────────────────────────────────────────────────────────
@@ -119,5 +121,52 @@ export function useTraceStats() {
     queryFn: indraApi.getTraceStats,
     refetchInterval: 15_000,
     staleTime: 14_000,
+  });
+}
+
+// ── Memory / RAG ──────────────────────────────────────────────────────────────
+
+export function useMemoryChunks(
+  params?: Parameters<typeof indraApi.listMemoryChunks>[0]
+) {
+  return useQuery({
+    queryKey: QK.memoryChunks(params),
+    queryFn: () => indraApi.listMemoryChunks(params),
+    staleTime: 10_000,
+  });
+}
+
+export function useMemoryStats() {
+  return useQuery({
+    queryKey: QK.memoryStats,
+    queryFn: indraApi.getMemoryStats,
+    refetchInterval: 30_000,
+    staleTime: 29_000,
+  });
+}
+
+export function useIngestMemory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.ingestMemoryChunk,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["memory"] });
+    },
+  });
+}
+
+export function useSearchMemory() {
+  return useMutation({
+    mutationFn: indraApi.searchMemory,
+  });
+}
+
+export function useDeleteMemoryChunk() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.deleteMemoryChunk,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["memory"] });
+    },
   });
 }

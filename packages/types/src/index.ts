@@ -127,6 +127,28 @@ export interface WSEvent<T = unknown> {
   timestamp: string;
 }
 
+// ── Memory / RAG ──────────────────────────────────────────────────────────
+
+export interface MemoryChunk {
+  id: string;
+  content: string;
+  has_embedding: boolean;
+  agent_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface MemorySearchResult extends MemoryChunk {
+  similarity: number;
+}
+
+export interface MemoryStats {
+  total_chunks: number;
+  chunks_with_embedding: number;
+  embedding_coverage_pct: number;
+  embedding_enabled: boolean;
+}
+
 // ── API ───────────────────────────────────────────────────────────────────
 export interface PaginatedResponse<T> {
   items: T[];

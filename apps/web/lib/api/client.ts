@@ -4,6 +4,9 @@ import type {
   AgentHierarchyNode,
   DashboardData,
   MCPServer,
+  MemoryChunk,
+  MemorySearchResult,
+  MemoryStats,
   PaginatedResponse,
   Session,
   Trace,
@@ -133,4 +136,52 @@ export const indraApi = {
         p99_duration_ms: number | null;
       }>("/traces/stats")
       .then((r) => r.data),
+
+  // Memory / RAG
+  listMemoryChunks: (params?: {
+    limit?: number;
+    offset?: number;
+    agent_id?: string;
+  }) =>
+    apiClient
+      .get<{ chunks: MemoryChunk[]; total: number; limit: number; offset: number }>(
+        "/memory/chunks",
+        { params }
+      )
+      .then((r) => r.data),
+
+  ingestMemoryChunk: (body: {
+    content: string;
+    agent_id?: string;
+    metadata?: Record<string, unknown>;
+  }) =>
+    apiClient
+      .post<{
+        id: string;
+        content_preview: string;
+        has_embedding: boolean;
+        created_at: string;
+      }>("/memory/chunks", body)
+      .then((r) => r.data),
+
+  searchMemory: (body: {
+    query: string;
+    limit?: number;
+    agent_id?: string;
+    similarity_threshold?: number;
+  }) =>
+    apiClient
+      .post<{
+        results: MemorySearchResult[];
+        total: number;
+        query: string;
+        search_mode: string;
+      }>("/memory/search", body)
+      .then((r) => r.data),
+
+  deleteMemoryChunk: (chunkId: string) =>
+    apiClient.delete(`/memory/chunks/${chunkId}`).then((r) => r.data),
+
+  getMemoryStats: () =>
+    apiClient.get<MemoryStats>("/memory/stats").then((r) => r.data),
 };

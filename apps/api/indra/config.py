@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     otel_endpoint: str = "http://localhost:4317"
     cors_origins: str = "http://localhost:3000"
 
+    openai_api_key: str = ""
+    embedding_model: str = "text-embedding-3-small"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",")]
