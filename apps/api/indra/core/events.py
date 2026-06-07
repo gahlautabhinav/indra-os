@@ -1,6 +1,6 @@
 import json
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -9,7 +9,7 @@ class IndraEvent:
     event_type: str
     domain: str
     data: dict[str, Any]
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def to_json(self) -> str:
         return json.dumps(asdict(self))
@@ -47,4 +47,20 @@ def make_session_ended(session_id: str) -> IndraEvent:
         event_type="session.ended",
         domain="indra",
         data={"session_id": session_id},
+    )
+
+
+def make_task_created(task_id: str, name: str, priority: int) -> IndraEvent:
+    return IndraEvent(
+        event_type="task.created",
+        domain="rudra",
+        data={"task_id": task_id, "name": name, "priority": priority},
+    )
+
+
+def make_task_status_changed(task_id: str, status: str) -> IndraEvent:
+    return IndraEvent(
+        event_type="task.status_changed",
+        domain="rudra",
+        data={"task_id": task_id, "status": status},
     )

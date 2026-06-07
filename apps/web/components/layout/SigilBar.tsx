@@ -27,7 +27,7 @@ const DOMAINS = [
     label: "VASU",
     subLabel: "वसु",
     icon: LayersIcon,
-    href: "/vasu/prthivi",
+    href: "/vasu/suryah",
     color: "var(--domain-vasu)",
   },
   {
