@@ -106,7 +106,17 @@ def _register_routers(app: FastAPI) -> None:
     from indra.core.auth import router as auth_router
     from indra.domains.aditya.smriti.router import router as memory_router
     from indra.domains.indra.router import router as indra_router
+    from indra.domains.rudra.apanah.router import router as apanah_router
+    from indra.domains.rudra.devadattah.router import router as devadattah_router
+    from indra.domains.rudra.dhananjayah.router import router as dhananjayah_router
+    from indra.domains.rudra.jivatma.router import router as jivatma_router
+    from indra.domains.rudra.krkalah.router import router as krkalah_router
+    from indra.domains.rudra.kurmah.router import router as kurmah_router
+    from indra.domains.rudra.nagah.router import router as nagah_router
     from indra.domains.rudra.pranah.router import router as pranah_router
+    from indra.domains.rudra.samanah.router import router as samanah_router
+    from indra.domains.rudra.udanah.router import router as udanah_router
+    from indra.domains.rudra.vyanah.router import router as vyanah_router
     from indra.domains.vasu.somah.router import router as mcp_router
     from indra.domains.vasu.suryah.router import router as trace_router
     from indra.websockets.router import router as ws_router
@@ -117,6 +127,17 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(trace_router, prefix="/api/v1", tags=["traces"])
     app.include_router(memory_router, prefix="/api/v1", tags=["memory"])
     app.include_router(pranah_router, prefix="/api/v1", tags=["tasks"])
+    # RUDRA runtime devas
+    app.include_router(devadattah_router, prefix="/api/v1", tags=["notifications"])
+    app.include_router(dhananjayah_router, prefix="/api/v1", tags=["processes"])
+    app.include_router(jivatma_router, prefix="/api/v1", tags=["identity"])
+    app.include_router(vyanah_router, prefix="/api/v1", tags=["messages"])
+    app.include_router(nagah_router, prefix="/api/v1", tags=["errors"])
+    app.include_router(apanah_router, prefix="/api/v1", tags=["cleanup"])
+    app.include_router(udanah_router, prefix="/api/v1", tags=["escalations"])
+    app.include_router(samanah_router, prefix="/api/v1", tags=["coordination"])
+    app.include_router(kurmah_router, prefix="/api/v1", tags=["checkpoints"])
+    app.include_router(krkalah_router, prefix="/api/v1", tags=["recovery"])
     app.include_router(ws_router, tags=["websocket"])
 
     @app.get("/health", tags=["system"])

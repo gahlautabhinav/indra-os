@@ -2,12 +2,19 @@ import axios, { type AxiosInstance } from "axios";
 import type {
   Agent,
   AgentHierarchyNode,
+  AgentMessage,
+  AgentProfile,
   DashboardData,
+  LineageResponse,
   MCPServer,
   MemoryChunk,
   MemorySearchResult,
   MemoryStats,
+  Notification,
+  NotificationListResponse,
+  NotificationStats,
   PaginatedResponse,
+  ProcessInfo,
   Session,
   Task,
   TaskStats,
@@ -248,4 +255,71 @@ export const indraApi = {
     body: { status: string; token_count?: number; cost_usd?: number; error?: string }
   ) =>
     apiClient.patch(`/agents/${agentId}/status`, body).then((r) => r.data),
+
+  // Agent identity / Jivatma
+  getAgentProfile: (agentId: string) =>
+    apiClient.get<AgentProfile>(`/agents/${agentId}/profile`).then((r) => r.data),
+
+  getAgentLineage: (agentId: string) =>
+    apiClient.get<LineageResponse>(`/agents/${agentId}/lineage`).then((r) => r.data),
+
+  // Notifications / Devadattah
+  listNotifications: (params?: { limit?: number; unread_only?: boolean }) =>
+    apiClient
+      .get<NotificationListResponse>("/notifications", { params })
+      .then((r) => r.data),
+
+  getNotificationStats: () =>
+    apiClient.get<NotificationStats>("/notifications/stats").then((r) => r.data),
+
+  createNotification: (body: {
+    title: string;
+    message: string;
+    severity?: string;
+    domain?: string;
+    source_type?: string;
+    source_id?: string;
+  }) =>
+    apiClient.post<Notification>("/notifications", body).then((r) => r.data),
+
+  markNotificationRead: (notificationId: string) =>
+    apiClient.post(`/notifications/${notificationId}/read`).then((r) => r.data),
+
+  markAllNotificationsRead: () =>
+    apiClient.post<{ marked_read: number }>("/notifications/read-all").then((r) => r.data),
+
+  deleteNotification: (notificationId: string) =>
+    apiClient.delete(`/notifications/${notificationId}`).then((r) => r.data),
+
+  // Processes / Dhananjayah
+  listProcesses: (params?: { all_processes?: boolean; limit?: number }) =>
+    apiClient
+      .get<{ processes: ProcessInfo[]; total: number }>("/processes", { params })
+      .then((r) => r.data),
+
+  terminateProcess: (pid: number) =>
+    apiClient.delete(`/processes/${pid}`).then((r) => r.data),
+
+  // Agent messages / Vyanah
+  listAgentMessages: (agentId: string, limit?: number) =>
+    apiClient
+      .get<{ messages: AgentMessage[]; agent_id: string; total: number }>(
+        `/agents/${agentId}/messages`,
+        { params: { limit } }
+      )
+      .then((r) => r.data),
+
+  publishAgentMessage: (
+    agentId: string,
+    body: { role?: string; content: string; metadata?: Record<string, unknown> }
+  ) =>
+    apiClient
+      .post<{ id: string; agent_id: string }>(`/agents/${agentId}/messages`, body)
+      .then((r) => r.data),
+
+  // Errors / Nagah
+  listErrors: () =>
+    apiClient
+      .get<{ errors: unknown[]; total: number }>("/errors")
+      .then((r) => r.data),
 };

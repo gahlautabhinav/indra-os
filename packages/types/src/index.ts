@@ -179,6 +179,102 @@ export interface MemoryStats {
   embedding_enabled: boolean;
 }
 
+// ── Notifications / Devadattah ────────────────────────────────────────────
+
+export type NotificationSeverity = "info" | "warning" | "critical";
+
+export interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  severity: NotificationSeverity;
+  domain: string;
+  source_type: string | null;
+  source_id: string | null;
+  is_read: boolean;
+  created_at: string;
+  read_at: string | null;
+}
+
+export interface NotificationStats {
+  total: number;
+  unread: number;
+}
+
+export interface NotificationListResponse {
+  notifications: Notification[];
+  total: number;
+  unread: number;
+}
+
+// ── Process / Dhananjayah ─────────────────────────────────────────────────
+
+export interface ProcessInfo {
+  pid: number;
+  name: string;
+  status: string;
+  cpu_percent: number;
+  memory_mb: number;
+  agent_id: string | null;
+  agent_name: string | null;
+  started_at: string | null;
+}
+
+// ── Agent Identity / Jivatma ──────────────────────────────────────────────
+
+export interface AgentProfile {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  domain: string;
+  parent_id: string | null;
+  session_id: string | null;
+  token_count: number;
+  cost_usd: number;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+  metadata: Record<string, unknown>;
+  children_count: number;
+}
+
+export interface LineageAncestor {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  domain: string;
+  depth: number;
+}
+
+export interface LineageChild {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  domain: string;
+}
+
+export interface LineageResponse {
+  agent: AgentProfile;
+  ancestors: LineageAncestor[];
+  children: LineageChild[];
+}
+
+// ── Agent Messages / Vyanah ───────────────────────────────────────────────
+
+export type MessageRole = "human" | "agent" | "system";
+
+export interface AgentMessage {
+  id: string;
+  agent_id: string;
+  role: MessageRole;
+  content: string;
+  metadata: Record<string, unknown>;
+  timestamp_ms: number;
+}
+
 // ── API ───────────────────────────────────────────────────────────────────
 export interface PaginatedResponse<T> {
   items: T[];

@@ -7,6 +7,9 @@ export const QK = {
   dashboard: ["dashboard"] as const,
   agents: (params?: object) => ["agents", params] as const,
   agentHierarchy: ["agents", "hierarchy"] as const,
+  agentProfile: (id: string) => ["agents", id, "profile"] as const,
+  agentLineage: (id: string) => ["agents", id, "lineage"] as const,
+  agentMessages: (id: string) => ["agents", id, "messages"] as const,
   sessions: (params?: object) => ["sessions", params] as const,
   mcpServers: ["mcp", "servers"] as const,
   pluginHealth: ["plugins", "health"] as const,
@@ -17,6 +20,10 @@ export const QK = {
   memoryStats: ["memory", "stats"] as const,
   tasks: (params?: object) => ["tasks", params] as const,
   taskStats: ["tasks", "stats"] as const,
+  notifications: (params?: object) => ["notifications", params] as const,
+  notificationStats: ["notifications", "stats"] as const,
+  processes: (params?: object) => ["processes", params] as const,
+  errors: ["errors"] as const,
 } as const;
 
 // ── Dashboard ─────────────────────────────────────────────────────────────
@@ -233,5 +240,123 @@ export function useSpawnAgent() {
       void qc.invalidateQueries({ queryKey: QK.agents() });
       void qc.invalidateQueries({ queryKey: QK.dashboard });
     },
+  });
+}
+
+// ── Jivatma — Agent Identity ──────────────────────────────────────────────────
+
+export function useAgentProfile(agentId: string | null) {
+  return useQuery({
+    queryKey: QK.agentProfile(agentId ?? ""),
+    queryFn: () => indraApi.getAgentProfile(agentId!),
+    enabled: !!agentId,
+    staleTime: 10_000,
+  });
+}
+
+export function useAgentLineage(agentId: string | null) {
+  return useQuery({
+    queryKey: QK.agentLineage(agentId ?? ""),
+    queryFn: () => indraApi.getAgentLineage(agentId!),
+    enabled: !!agentId,
+    staleTime: 10_000,
+  });
+}
+
+// ── Vyanah — Agent Messages ───────────────────────────────────────────────────
+
+export function useAgentMessages(agentId: string | null) {
+  return useQuery({
+    queryKey: QK.agentMessages(agentId ?? ""),
+    queryFn: () => indraApi.listAgentMessages(agentId!),
+    enabled: !!agentId,
+    refetchInterval: 5_000,
+    staleTime: 4_000,
+  });
+}
+
+export function usePublishMessage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      agentId,
+      ...body
+    }: { agentId: string; role?: string; content: string; metadata?: Record<string, unknown> }) =>
+      indraApi.publishAgentMessage(agentId, body),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: QK.agentMessages(vars.agentId) });
+    },
+  });
+}
+
+// ── Devadattah — Notifications ────────────────────────────────────────────────
+
+export function useNotifications(params?: { limit?: number; unread_only?: boolean }) {
+  return useQuery({
+    queryKey: QK.notifications(params),
+    queryFn: () => indraApi.listNotifications(params),
+    refetchInterval: 15_000,
+    staleTime: 14_000,
+  });
+}
+
+export function useNotificationStats() {
+  return useQuery({
+    queryKey: QK.notificationStats,
+    queryFn: indraApi.getNotificationStats,
+    refetchInterval: 10_000,
+    staleTime: 9_000,
+  });
+}
+
+export function useMarkNotificationRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.markNotificationRead,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.markAllNotificationsRead,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+}
+
+export function useDeleteNotification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.deleteNotification,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+}
+
+// ── Dhananjayah — Processes ───────────────────────────────────────────────────
+
+export function useProcesses(params?: { all_processes?: boolean; limit?: number }) {
+  return useQuery({
+    queryKey: QK.processes(params),
+    queryFn: () => indraApi.listProcesses(params),
+    refetchInterval: 10_000,
+    staleTime: 9_000,
+  });
+}
+
+// ── Nagah — Errors ────────────────────────────────────────────────────────────
+
+export function useErrors() {
+  return useQuery({
+    queryKey: QK.errors,
+    queryFn: indraApi.listErrors,
+    refetchInterval: 15_000,
+    staleTime: 14_000,
   });
 }

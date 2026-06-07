@@ -64,3 +64,13 @@ def make_task_status_changed(task_id: str, status: str) -> IndraEvent:
         domain="rudra",
         data={"task_id": task_id, "status": status},
     )
+
+
+def make_notification_created(
+    notification_id: str, title: str, severity: str, domain: str
+) -> IndraEvent:
+    return IndraEvent(
+        event_type="notification.created",
+        domain=domain,
+        data={"id": notification_id, "title": title, "severity": severity},
+    )
