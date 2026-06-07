@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, User, GitBranch } from "lucide-react";
+import { ChevronRight, GitBranch } from "lucide-react";
 import type { LineageAncestor, LineageChild } from "@indra/types";
 import { useAgents, useAgentLineage } from "@/lib/api/hooks";
 

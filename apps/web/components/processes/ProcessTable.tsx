@@ -1,6 +1,6 @@
 "use client";
 
-import { Cpu, MemoryStick, RefreshCw, AlertTriangle } from "lucide-react";
+import { Cpu, AlertTriangle } from "lucide-react";
 import type { ProcessInfo } from "@indra/types";
 
 interface ProcessTableProps {
@@ -39,7 +39,7 @@ export function ProcessTable({ processes, onTerminate }: ProcessTableProps) {
       <div className="flex flex-col items-center justify-center py-12 text-ink-ghost gap-2">
         <Cpu className="w-8 h-8 opacity-30" />
         <p className="text-sm">No relevant processes found</p>
-        <p className="text-xs text-ink-ghost">Enable "Show all" to see all system processes</p>
+        <p className="text-xs text-ink-ghost">Enable &quot;Show all&quot; to see all system processes</p>
       </div>
     );
   }

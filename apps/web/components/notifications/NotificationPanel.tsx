@@ -1,7 +1,7 @@
 "use client";
 
 import { Bell, Check, CheckCheck, Trash2, X } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { Notification } from "@indra/types";
 import {
   useMarkAllNotificationsRead,
