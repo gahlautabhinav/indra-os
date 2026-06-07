@@ -1,0 +1,50 @@
+# Planning docs — local only, not tracked in git
+PRD.md
+ARCHITECTURE.md
+PLAN.md
+INDRA_DESIGN.md
+design_files/
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+.turbo/
+*.tsbuildinfo
+.cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+
+# Alembic
+# (keep migrations tracked)
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Docker
+*.log
+
+# Secrets
+*.pem
+*.key
+*.cert
