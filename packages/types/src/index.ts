@@ -275,6 +275,97 @@ export interface AgentMessage {
   timestamp_ms: number;
 }
 
+// ── Storage / Prthivi ────────────────────────────────────────────────────
+
+export interface Workspace {
+  id: string;
+  name: string;
+  path: string;
+  description: string | null;
+  status: "active" | "inactive" | "error";
+  file_count: number;
+  size_bytes: number;
+  last_indexed_at: string | null;
+  created_at: string;
+}
+
+export interface WorkspaceFile {
+  name: string;
+  path: string;
+  type: "file" | "directory";
+  size: number;
+  modified_at: string;
+}
+
+export interface WorkspaceFileList {
+  workspace_id: string;
+  path: string;
+  entries: WorkspaceFile[];
+  total: number;
+}
+
+export interface StorageAnalytics {
+  total_workspaces: number;
+  active_workspaces: number;
+  total_files: number;
+  total_size_bytes: number;
+  total_size_human: string;
+}
+
+// ── Event Streams / Apah ─────────────────────────────────────────────────
+
+export interface StreamEvent {
+  id: string;
+  stream: string;
+  data: Record<string, string>;
+  timestamp_ms: number;
+}
+
+export interface StreamInfo {
+  name: string;
+  length: number;
+}
+
+export interface StreamListResponse {
+  streams: StreamInfo[];
+  total: number;
+}
+
+export interface StreamEventsResponse {
+  stream: string;
+  events: StreamEvent[];
+  total: number;
+}
+
+// ── Knowledge Graph / Naksatrani ─────────────────────────────────────────
+
+export interface KnowledgeNode {
+  id: string;
+  entity_type: string;
+  entity_id: string | null;
+  label: string;
+  domain: string;
+  properties: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface KnowledgeEdge {
+  id: string;
+  from_node_id: string;
+  to_node_id: string;
+  relationship: string;
+  weight: number;
+  properties: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface GraphResponse {
+  nodes: KnowledgeNode[];
+  edges: KnowledgeEdge[];
+  node_count: number;
+  edge_count: number;
+}
+
 // ── API ───────────────────────────────────────────────────────────────────
 export interface PaginatedResponse<T> {
   items: T[];
