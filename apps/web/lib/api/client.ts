@@ -5,6 +5,9 @@ import type {
   AgentMessage,
   AgentProfile,
   DashboardData,
+  GraphResponse,
+  KnowledgeEdge,
+  KnowledgeNode,
   LineageResponse,
   MCPServer,
   MemoryChunk,
@@ -16,10 +19,15 @@ import type {
   PaginatedResponse,
   ProcessInfo,
   Session,
+  StorageAnalytics,
+  StreamEventsResponse,
+  StreamListResponse,
   Task,
   TaskStats,
   Trace,
   TraceWithSpans,
+  Workspace,
+  WorkspaceFileList,
 } from "@indra/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -322,4 +330,77 @@ export const indraApi = {
     apiClient
       .get<{ errors: unknown[]; total: number }>("/errors")
       .then((r) => r.data),
+
+  // Storage / Prthivi
+  listWorkspaces: () =>
+    apiClient.get<Workspace[]>("/storage/workspaces").then((r) => r.data),
+
+  createWorkspace: (body: { name: string; path: string; description?: string }) =>
+    apiClient.post<Workspace>("/storage/workspaces", body).then((r) => r.data),
+
+  reindexWorkspace: (workspaceId: string) =>
+    apiClient.post<Workspace>(`/storage/workspaces/${workspaceId}/reindex`).then((r) => r.data),
+
+  getWorkspaceFiles: (workspaceId: string, path?: string) =>
+    apiClient
+      .get<WorkspaceFileList>(`/storage/workspaces/${workspaceId}/files`, {
+        params: { ...(path ? { path } : {}) },
+      })
+      .then((r) => r.data),
+
+  deleteWorkspace: (workspaceId: string) =>
+    apiClient.delete(`/storage/workspaces/${workspaceId}`).then((r) => r.data),
+
+  getStorageAnalytics: () =>
+    apiClient.get<StorageAnalytics>("/storage/analytics").then((r) => r.data),
+
+  // Event Streams / Apah
+  listStreams: () =>
+    apiClient.get<StreamListResponse>("/events/streams").then((r) => r.data),
+
+  readStream: (streamName: string, limit?: number) =>
+    apiClient
+      .get<StreamEventsResponse>(`/events/streams/${streamName}`, {
+        params: { ...(limit ? { limit } : {}) },
+      })
+      .then((r) => r.data),
+
+  publishToStream: (body: { stream: string; data: Record<string, string> }) =>
+    apiClient
+      .post<{ id: string; stream: string }>("/events/publish", body)
+      .then((r) => r.data),
+
+  // Knowledge Graph / Naksatrani
+  getKnowledgeGraph: () =>
+    apiClient.get<GraphResponse>("/knowledge/graph").then((r) => r.data),
+
+  syncAgentNodes: () =>
+    apiClient.post<{ synced: number }>("/knowledge/sync").then((r) => r.data),
+
+  createKnowledgeNode: (body: {
+    entity_type: string;
+    entity_id?: string;
+    label: string;
+    domain?: string;
+    properties?: Record<string, unknown>;
+  }) =>
+    apiClient.post<KnowledgeNode>("/knowledge/nodes", body).then((r) => r.data),
+
+  createKnowledgeEdge: (body: {
+    from_node_id: string;
+    to_node_id: string;
+    relationship: string;
+    weight?: number;
+    properties?: Record<string, unknown>;
+  }) =>
+    apiClient.post<KnowledgeEdge>("/knowledge/edges", body).then((r) => r.data),
+
+  searchKnowledgeNodes: (body: { query: string; limit?: number }) =>
+    apiClient.post<KnowledgeNode[]>("/knowledge/search", body).then((r) => r.data),
+
+  deleteKnowledgeNode: (nodeId: string) =>
+    apiClient.delete(`/knowledge/nodes/${nodeId}`).then((r) => r.data),
+
+  deleteKnowledgeEdge: (edgeId: string) =>
+    apiClient.delete(`/knowledge/edges/${edgeId}`).then((r) => r.data),
 };

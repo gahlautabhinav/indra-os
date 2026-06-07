@@ -117,8 +117,14 @@ def _register_routers(app: FastAPI) -> None:
     from indra.domains.rudra.samanah.router import router as samanah_router
     from indra.domains.rudra.udanah.router import router as udanah_router
     from indra.domains.rudra.vyanah.router import router as vyanah_router
+    from indra.domains.vasu.agnih.router import router as agnih_router
+    from indra.domains.vasu.akasah.router import router as akasah_router
+    from indra.domains.vasu.apah.router import router as apah_router
+    from indra.domains.vasu.naksatrani.router import router as naksatrani_router
+    from indra.domains.vasu.prthivi.router import router as prthivi_router
     from indra.domains.vasu.somah.router import router as mcp_router
     from indra.domains.vasu.suryah.router import router as trace_router
+    from indra.domains.vasu.vayuh.router import router as vayuh_router
     from indra.websockets.router import router as ws_router
 
     app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
@@ -138,6 +144,13 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(samanah_router, prefix="/api/v1", tags=["coordination"])
     app.include_router(kurmah_router, prefix="/api/v1", tags=["checkpoints"])
     app.include_router(krkalah_router, prefix="/api/v1", tags=["recovery"])
+    # VASU infrastructure devas
+    app.include_router(prthivi_router, prefix="/api/v1", tags=["storage"])
+    app.include_router(apah_router, prefix="/api/v1", tags=["events"])
+    app.include_router(naksatrani_router, prefix="/api/v1", tags=["knowledge"])
+    app.include_router(agnih_router, prefix="/api/v1", tags=["execution"])
+    app.include_router(vayuh_router, prefix="/api/v1", tags=["communication"])
+    app.include_router(akasah_router, prefix="/api/v1", tags=["context"])
     app.include_router(ws_router, tags=["websocket"])
 
     @app.get("/health", tags=["system"])

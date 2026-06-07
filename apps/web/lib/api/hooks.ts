@@ -24,6 +24,13 @@ export const QK = {
   notificationStats: ["notifications", "stats"] as const,
   processes: (params?: object) => ["processes", params] as const,
   errors: ["errors"] as const,
+  // VASU infra
+  workspaces: ["storage", "workspaces"] as const,
+  workspaceFiles: (id: string, path?: string) => ["storage", "files", id, path] as const,
+  storageAnalytics: ["storage", "analytics"] as const,
+  streams: ["events", "streams"] as const,
+  streamEvents: (name: string) => ["events", "stream", name] as const,
+  knowledgeGraph: ["knowledge", "graph"] as const,
 } as const;
 
 // ── Dashboard ─────────────────────────────────────────────────────────────
@@ -358,5 +365,165 @@ export function useErrors() {
     queryFn: indraApi.listErrors,
     refetchInterval: 15_000,
     staleTime: 14_000,
+  });
+}
+
+// ── Prthivi — Storage & Workspaces ────────────────────────────────────────────
+
+export function useWorkspaces() {
+  return useQuery({
+    queryKey: QK.workspaces,
+    queryFn: indraApi.listWorkspaces,
+    refetchInterval: 30_000,
+    staleTime: 29_000,
+  });
+}
+
+export function useWorkspaceFiles(workspaceId: string | null, path?: string) {
+  return useQuery({
+    queryKey: QK.workspaceFiles(workspaceId ?? "", path),
+    queryFn: () => indraApi.getWorkspaceFiles(workspaceId!, path),
+    enabled: !!workspaceId,
+    staleTime: 15_000,
+  });
+}
+
+export function useStorageAnalytics() {
+  return useQuery({
+    queryKey: QK.storageAnalytics,
+    queryFn: indraApi.getStorageAnalytics,
+    refetchInterval: 60_000,
+    staleTime: 59_000,
+  });
+}
+
+export function useCreateWorkspace() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.createWorkspace,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QK.workspaces });
+      void qc.invalidateQueries({ queryKey: QK.storageAnalytics });
+    },
+  });
+}
+
+export function useReindexWorkspace() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.reindexWorkspace,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QK.workspaces });
+      void qc.invalidateQueries({ queryKey: QK.storageAnalytics });
+    },
+  });
+}
+
+export function useDeleteWorkspace() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.deleteWorkspace,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QK.workspaces });
+      void qc.invalidateQueries({ queryKey: QK.storageAnalytics });
+    },
+  });
+}
+
+// ── Apah — Event Streams ──────────────────────────────────────────────────────
+
+export function useStreams() {
+  return useQuery({
+    queryKey: QK.streams,
+    queryFn: indraApi.listStreams,
+    refetchInterval: 10_000,
+    staleTime: 9_000,
+  });
+}
+
+export function useStreamEvents(streamName: string | null, limit?: number) {
+  return useQuery({
+    queryKey: QK.streamEvents(streamName ?? ""),
+    queryFn: () => indraApi.readStream(streamName!, limit),
+    enabled: !!streamName,
+    refetchInterval: 5_000,
+    staleTime: 4_000,
+  });
+}
+
+export function usePublishToStream() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.publishToStream,
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: QK.streamEvents(vars.stream) });
+    },
+  });
+}
+
+// ── Naksatrani — Knowledge Graph ──────────────────────────────────────────────
+
+export function useKnowledgeGraph() {
+  return useQuery({
+    queryKey: QK.knowledgeGraph,
+    queryFn: indraApi.getKnowledgeGraph,
+    refetchInterval: 30_000,
+    staleTime: 29_000,
+  });
+}
+
+export function useSyncAgentNodes() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.syncAgentNodes,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QK.knowledgeGraph });
+    },
+  });
+}
+
+export function useCreateKnowledgeNode() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.createKnowledgeNode,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QK.knowledgeGraph });
+    },
+  });
+}
+
+export function useCreateKnowledgeEdge() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.createKnowledgeEdge,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QK.knowledgeGraph });
+    },
+  });
+}
+
+export function useDeleteKnowledgeNode() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.deleteKnowledgeNode,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QK.knowledgeGraph });
+    },
+  });
+}
+
+export function useDeleteKnowledgeEdge() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.deleteKnowledgeEdge,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QK.knowledgeGraph });
+    },
+  });
+}
+
+export function useSearchKnowledgeNodes() {
+  return useMutation({
+    mutationFn: indraApi.searchKnowledgeNodes,
   });
 }
