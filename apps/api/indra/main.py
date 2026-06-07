@@ -17,6 +17,8 @@ logger = structlog.get_logger()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    from indra.plugins import ClaudeCodePlugin, plugin_manager
+
     logger.info("INDRA starting", environment=settings.environment)
 
     setup_telemetry(app)
@@ -25,9 +27,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await redis.ping()
     logger.info("Redis connected")
 
+    # Register and initialize CLI adapters.
+    plugin_manager.register(ClaudeCodePlugin())
+    await plugin_manager.initialize_all()
+    logger.info("Plugins online: %s", plugin_manager.plugin_types)
+
+    # Start background poller.
+    from indra.core.poller import poller
+    poller.start()
+
     logger.info("INDRA ready — 33 Devas online")
     yield
 
+    poller.stop()
+    await plugin_manager.shutdown_all()
     await close_redis()
     await engine.dispose()
     logger.info("INDRA shutdown complete")
@@ -73,11 +86,13 @@ def create_app() -> FastAPI:
 
 def _register_routers(app: FastAPI) -> None:
     from indra.domains.indra.router import router as indra_router
+    from indra.domains.vasu.somah.router import router as mcp_router
     from indra.websockets.router import router as ws_router
     from indra.core.auth import router as auth_router
 
     app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
     app.include_router(indra_router, prefix="/api/v1", tags=["indra"])
+    app.include_router(mcp_router, prefix="/api/v1", tags=["mcp"])
     app.include_router(ws_router, tags=["websocket"])
 
     @app.get("/health", tags=["system"])
