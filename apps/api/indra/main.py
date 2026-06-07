@@ -25,7 +25,14 @@ logger = structlog.get_logger()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    from indra.plugins import ClaudeCodePlugin, plugin_manager
+    from indra.plugins import (
+        ClaudeCodePlugin,
+        CodexCliPlugin,
+        GeminiCliPlugin,
+        KiroCliPlugin,
+        OpenCodePlugin,
+        plugin_manager,
+    )
 
     logger.info("INDRA starting", environment=settings.environment)
 
@@ -37,8 +44,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await redis.ping()
     logger.info("Redis connected")
 
-    # Register and initialize CLI adapters.
-    plugin_manager.register(ClaudeCodePlugin())
+    # Register all CLI adapters — each gracefully handles its own absence.
+    for plugin in [
+        ClaudeCodePlugin(),
+        GeminiCliPlugin(),
+        CodexCliPlugin(),
+        KiroCliPlugin(),
+        OpenCodePlugin(),
+    ]:
+        plugin_manager.register(plugin)
     await plugin_manager.initialize_all()
     logger.info("Plugins online: %s", plugin_manager.plugin_types)
 
