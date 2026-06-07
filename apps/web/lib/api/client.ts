@@ -9,6 +9,8 @@ import type {
   MemoryStats,
   PaginatedResponse,
   Session,
+  Task,
+  TaskStats,
   Trace,
   TraceWithSpans,
 } from "@indra/types";
@@ -184,4 +186,66 @@ export const indraApi = {
 
   getMemoryStats: () =>
     apiClient.get<MemoryStats>("/memory/stats").then((r) => r.data),
+
+  // Tasks / Pranah
+  listTasks: (params?: {
+    limit?: number;
+    offset?: number;
+    status?: string;
+    agent_id?: string;
+    priority?: number;
+  }) =>
+    apiClient
+      .get<{ tasks: Task[]; total: number; limit: number; offset: number }>(
+        "/tasks",
+        { params }
+      )
+      .then((r) => r.data),
+
+  getTaskStats: () =>
+    apiClient.get<TaskStats>("/tasks/stats").then((r) => r.data),
+
+  createTask: (body: {
+    name: string;
+    description?: string;
+    agent_id?: string;
+    priority?: number;
+    input?: Record<string, unknown>;
+  }) =>
+    apiClient.post<Task>("/tasks", body).then((r) => r.data),
+
+  updateTask: (
+    taskId: string,
+    body: { status?: string; output?: Record<string, unknown>; error?: string }
+  ) =>
+    apiClient.patch<Task>(`/tasks/${taskId}`, body).then((r) => r.data),
+
+  cancelTask: (taskId: string) =>
+    apiClient.delete(`/tasks/${taskId}`).then((r) => r.data),
+
+  // Agent spawn
+  spawnAgent: (body: {
+    name: string;
+    type?: string;
+    domain?: string;
+    parent_id?: string;
+    metadata?: Record<string, unknown>;
+  }) =>
+    apiClient
+      .post<{
+        id: string;
+        name: string;
+        type: string;
+        status: string;
+        domain: string;
+        parent_id: string | null;
+        created_at: string;
+      }>("/agents/spawn", body)
+      .then((r) => r.data),
+
+  updateAgentStatus: (
+    agentId: string,
+    body: { status: string; token_count?: number; cost_usd?: number; error?: string }
+  ) =>
+    apiClient.patch(`/agents/${agentId}/status`, body).then((r) => r.data),
 };

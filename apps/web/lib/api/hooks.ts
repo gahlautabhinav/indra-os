@@ -15,6 +15,8 @@ export const QK = {
   traceStats: ["traces", "stats"] as const,
   memoryChunks: (params?: object) => ["memory", "chunks", params] as const,
   memoryStats: ["memory", "stats"] as const,
+  tasks: (params?: object) => ["tasks", params] as const,
+  taskStats: ["tasks", "stats"] as const,
 } as const;
 
 // ── Dashboard ─────────────────────────────────────────────────────────────
@@ -167,6 +169,69 @@ export function useDeleteMemoryChunk() {
     mutationFn: indraApi.deleteMemoryChunk,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["memory"] });
+    },
+  });
+}
+
+// ── Tasks / Pranah ────────────────────────────────────────────────────────────
+
+export function useTasks(params?: Parameters<typeof indraApi.listTasks>[0]) {
+  return useQuery({
+    queryKey: QK.tasks(params),
+    queryFn: () => indraApi.listTasks(params),
+    refetchInterval: 5_000,
+    staleTime: 4_000,
+  });
+}
+
+export function useTaskStats() {
+  return useQuery({
+    queryKey: QK.taskStats,
+    queryFn: indraApi.getTaskStats,
+    refetchInterval: 5_000,
+    staleTime: 4_000,
+  });
+}
+
+export function useCreateTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.createTask,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["tasks"] });
+      void qc.invalidateQueries({ queryKey: QK.dashboard });
+    },
+  });
+}
+
+export function useUpdateTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; status?: string; output?: Record<string, unknown>; error?: string }) =>
+      indraApi.updateTask(id, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+}
+
+export function useCancelTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.cancelTask,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+}
+
+export function useSpawnAgent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.spawnAgent,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QK.agents() });
+      void qc.invalidateQueries({ queryKey: QK.dashboard });
     },
   });
 }

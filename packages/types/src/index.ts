@@ -127,6 +127,36 @@ export interface WSEvent<T = unknown> {
   timestamp: string;
 }
 
+// ── Task ──────────────────────────────────────────────────────────────────
+
+export type TaskStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
+export type TaskPriority = 0 | 1 | 2;
+
+export interface Task {
+  id: string;
+  name: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  agent_id: string | null;
+  workflow_id: string | null;
+  input: Record<string, unknown>;
+  output: Record<string, unknown> | null;
+  error: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+}
+
+export interface TaskStats {
+  pending: number;
+  running: number;
+  completed: number;
+  failed: number;
+  cancelled: number;
+  total: number;
+}
+
 // ── Memory / RAG ──────────────────────────────────────────────────────────
 
 export interface MemoryChunk {
