@@ -10,6 +10,9 @@ export const QK = {
   sessions: (params?: object) => ["sessions", params] as const,
   mcpServers: ["mcp", "servers"] as const,
   pluginHealth: ["plugins", "health"] as const,
+  traces: (params?: object) => ["traces", params] as const,
+  trace: (id: string) => ["traces", id] as const,
+  traceStats: ["traces", "stats"] as const,
 } as const;
 
 // ── Dashboard ─────────────────────────────────────────────────────────────
@@ -87,5 +90,34 @@ export function useSyncPlugins() {
       void qc.invalidateQueries({ queryKey: QK.sessions() });
       void qc.invalidateQueries({ queryKey: ["dashboard"] });
     },
+  });
+}
+
+// ── Traces ────────────────────────────────────────────────────────────────
+
+export function useTraces(params?: Parameters<typeof indraApi.listTraces>[0]) {
+  return useQuery({
+    queryKey: QK.traces(params),
+    queryFn: () => indraApi.listTraces(params),
+    refetchInterval: 10_000,
+    staleTime: 9_000,
+  });
+}
+
+export function useTrace(traceId: string | null) {
+  return useQuery({
+    queryKey: QK.trace(traceId ?? ""),
+    queryFn: () => indraApi.getTrace(traceId!),
+    enabled: !!traceId,
+    staleTime: 30_000,
+  });
+}
+
+export function useTraceStats() {
+  return useQuery({
+    queryKey: QK.traceStats,
+    queryFn: indraApi.getTraceStats,
+    refetchInterval: 15_000,
+    staleTime: 14_000,
   });
 }

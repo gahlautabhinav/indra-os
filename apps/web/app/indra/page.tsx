@@ -1,15 +1,17 @@
 "use client";
 
-import { useAgentHierarchy, useAgents, useDashboard, usePluginHealth } from "@/lib/api/hooks";
+import { useAgentHierarchy, useAgents, useDashboard, usePluginHealth, useTraces } from "@/lib/api/hooks";
 import { MetricTile } from "@/components/metrics/MetricTile";
 import { AgentCard } from "@/components/agents/AgentCard";
 import { AgentObservatory } from "@/components/agents/AgentObservatory";
+import Link from "next/link";
 
 export default function WorkforceDashboard() {
   const { data: dashboard, isLoading: dashLoading } = useDashboard();
   const { data: agentsData, isLoading: agentsLoading } = useAgents({ limit: 20 });
   const { data: hierarchy, isLoading: hierarchyLoading } = useAgentHierarchy();
   const { data: pluginHealth } = usePluginHealth();
+  const { data: tracesData } = useTraces({ limit: 8 });
 
   const healthPct = dashboard?.system_health ?? 0;
   const healthColor =
@@ -131,6 +133,80 @@ export default function WorkforceDashboard() {
             </p>
           </div>
         )}
+      </section>
+      {/* Recent Traces strip — Row 4 per INDRA_DESIGN.md §9.1 */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="label-caps" style={{ color: "#d4843a" }}>
+              Recent Traces · Sūryaḥ
+            </h2>
+          </div>
+          <Link
+            href="/vasu/suryah"
+            className="text-xs font-mono text-ink-tertiary hover:text-ink-secondary transition-colors"
+          >
+            View all →
+          </Link>
+        </div>
+
+        <div
+          className="rounded-[12px] border border-hairline bg-surface-1 overflow-hidden"
+          style={{ borderTop: "2px solid #d4843a" }}
+        >
+          {!tracesData || tracesData.traces.length === 0 ? (
+            <div className="px-4 py-6 text-center">
+              <p className="text-xs text-ink-ghost">
+                No traces yet — agent executions will appear here as Vivarta spans
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Column headers */}
+              <div className="flex items-center gap-3 px-4 py-2 border-b border-hairline bg-surface-2">
+                <span className="label-caps text-ink-ghost w-2 shrink-0" />
+                <span className="label-caps text-ink-ghost" style={{ width: "72px" }}>ID</span>
+                <span className="label-caps text-ink-ghost flex-1">Name</span>
+                <span className="label-caps text-ink-ghost">Spans</span>
+                <span className="label-caps text-ink-ghost w-14 text-right">Duration</span>
+              </div>
+              {tracesData.traces.map((trace) => {
+                const statusColor =
+                  trace.status === "ok"      ? "#2ab870" :
+                  trace.status === "error"   ? "#e04040" :
+                  trace.status === "running" ? "#4dc8c8" :
+                  "#637585";
+                return (
+                  <div
+                    key={trace.id}
+                    className="flex items-center gap-3 px-4 py-2.5 border-b border-hairline last:border-0 hover:bg-surface-2/60 transition-colors"
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{ backgroundColor: statusColor }}
+                    />
+                    <span className="font-mono text-ink-ghost" style={{ fontSize: "10px", width: "72px" }}>
+                      {trace.trace_id.slice(0, 8)}…
+                    </span>
+                    <span className="text-xs text-ink-secondary truncate flex-1">
+                      {trace.name ?? "Unnamed trace"}
+                    </span>
+                    <span className="font-mono text-ink-ghost" style={{ fontSize: "11px" }}>
+                      {trace.span_count ?? 0}
+                    </span>
+                    <span className="font-mono text-ink-tertiary tabular-nums" style={{ fontSize: "11px", width: "56px", textAlign: "right" }}>
+                      {trace.duration_ms != null
+                        ? trace.duration_ms < 1000
+                          ? `${trace.duration_ms}ms`
+                          : `${(trace.duration_ms / 1000).toFixed(2)}s`
+                        : "—"}
+                    </span>
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
       </section>
     </div>
   );

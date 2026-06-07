@@ -6,6 +6,8 @@ import type {
   MCPServer,
   PaginatedResponse,
   Session,
+  Trace,
+  TraceWithSpans,
 } from "@indra/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -101,4 +103,34 @@ export const indraApi = {
       updated: number;
       errors: number;
     }>("/plugins/sync").then((r) => r.data),
+
+  // Traces
+  listTraces: (params?: {
+    limit?: number;
+    offset?: number;
+    status?: string;
+    session_id?: string;
+    agent_id?: string;
+  }) =>
+    apiClient
+      .get<{ traces: Trace[]; total: number; limit: number; offset: number }>(
+        "/traces",
+        { params }
+      )
+      .then((r) => r.data),
+
+  getTrace: (traceId: string) =>
+    apiClient.get<TraceWithSpans>(`/traces/${traceId}`).then((r) => r.data),
+
+  getTraceStats: () =>
+    apiClient
+      .get<{
+        total_traces: number;
+        active_traces: number;
+        error_traces: number;
+        avg_duration_ms: number | null;
+        p50_duration_ms: number | null;
+        p99_duration_ms: number | null;
+      }>("/traces/stats")
+      .then((r) => r.data),
 };
