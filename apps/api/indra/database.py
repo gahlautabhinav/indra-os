@@ -7,7 +7,9 @@ from indra.config import settings
 
 engine = create_async_engine(
     settings.database_url,
-    echo=settings.is_development,
+    # Opt-in SQL logging. Off by default so the 30s poller sync doesn't flood
+    # the console; set DB_ECHO=true to debug queries.
+    echo=settings.db_echo,
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,

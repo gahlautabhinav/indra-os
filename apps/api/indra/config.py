@@ -16,6 +16,7 @@ class Settings(BaseSettings):
 
     environment: str = "development"
     log_level: str = "DEBUG"
+    db_echo: bool = False  # set DB_ECHO=true to log every SQL statement
 
     otel_endpoint: str = "http://localhost:4317"
     cors_origins: str = "http://localhost:3333"
