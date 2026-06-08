@@ -10,6 +10,7 @@ const PLUGIN_LABELS: Record<string, string> = {
   codex_cli: "Codex CLI",
   kiro_cli: "Kiro",
   opencode: "OpenCode",
+  antigravity: "Antigravity",
 };
 
 const PLUGIN_COLORS: Record<string, string> = {
@@ -18,6 +19,7 @@ const PLUGIN_COLORS: Record<string, string> = {
   codex_cli: "#7c6af7",
   kiro_cli: "#2ab870",
   opencode: "#e04040",
+  antigravity: "#a855f7",
 };
 
 function StatChip({ label, value, color }: { label: string; value: string | number; color?: string }) {
@@ -196,6 +198,7 @@ const PLUGIN_FILTERS = [
   { value: "codex_cli", label: "Codex CLI" },
   { value: "kiro_cli", label: "Kiro" },
   { value: "opencode", label: "OpenCode" },
+  { value: "antigravity", label: "Antigravity" },
 ] as const;
 
 export default function SomahPage() {

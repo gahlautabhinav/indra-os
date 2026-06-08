@@ -1,6 +1,6 @@
 // ── Agent ──────────────────────────────────────────────────────────────────
 export type AgentStatus = "idle" | "running" | "active" | "error" | "completed" | "dead";
-export type AgentType = "claude_code" | "gemini_cli" | "codex_cli" | "opencode" | "kiro_cli" | "custom";
+export type AgentType = "claude_code" | "gemini_cli" | "codex_cli" | "opencode" | "kiro_cli" | "antigravity" | "custom";
 export type DomainId = "indra" | "vasu" | "rudra" | "aditya" | "prajapati";
 
 export interface Agent {

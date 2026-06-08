@@ -10,6 +10,7 @@ const PLUGIN_COLOR: Record<string, string> = {
   codex_cli: "#7c6af7",
   kiro_cli: "#2ab870",
   opencode: "#e04040",
+  antigravity: "#a855f7",
 };
 
 export default function VayuhPage() {

@@ -32,10 +32,15 @@ _sync_lock = asyncio.Lock()
 
 
 def _session_agent_name(si: object) -> str:
-    """Human-readable agent name for a CLI session: '<plugin> · <project>'."""
+    """Human-readable agent name: '<plugin> · <title|project|id8>'."""
     plugin = getattr(si, "plugin_type", "cli")
     project_path = getattr(si, "project_path", None)
+    metadata = getattr(si, "metadata", None) or {}
     sid = getattr(si, "id", "") or ""
+    # Adapters that recover a task title (e.g. Antigravity) expose it in metadata.
+    title = metadata.get("title") if isinstance(metadata, dict) else None
+    if title:
+        return f"{plugin} · {title}"
     if project_path:
         leaf = project_path.replace("\\", "/").rstrip("/").split("/")[-1]
         if leaf:
@@ -361,6 +366,10 @@ class WorkforceService:
                             self.db.add(session)
                         else:
                             is_new = False
+                            # plugin_type/project_path can change if an adapter
+                            # reclassifies a conversation (e.g. gemini → antigravity).
+                            session.plugin_type = si.plugin_type
+                            session.project_path = si.project_path
                             session.status = si.status
                             session.metadata_ = {
                                 **session.metadata_,
@@ -396,6 +405,8 @@ class WorkforceService:
                         else:
                             agent.status = agent_status
                             agent.name = agent_name
+                            agent.type = si.plugin_type
+                            agent.plugin_id = si.plugin_type
                             agent.token_count = token_count
                             agent.cost_usd = cost
 

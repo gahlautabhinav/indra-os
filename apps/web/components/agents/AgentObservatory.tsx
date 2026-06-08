@@ -1,131 +1,121 @@
 "use client";
 
-import { useEffect } from "react";
-import ReactFlow, {
-  Background,
-  Controls,
-  MiniMap,
-  type Node,
-  type Edge,
-  type NodeProps,
-  useNodesState,
-  useEdgesState,
-  MarkerType,
-} from "reactflow";
-import "reactflow/dist/style.css";
+import { useMemo, useState } from "react";
 import type { AgentHierarchyNode } from "@indra/types";
 import { DOMAIN_COLORS } from "@indra/design-tokens";
+import { GitBranch, Telescope } from "lucide-react";
 
-// ── Custom node ───────────────────────────────────────────────────────────────
+// ── Status + plugin vocab ─────────────────────────────────────────────────────
 
-const STATUS_COLORS: Record<string, string> = {
-  idle: "#4080a0",
-  running: "#4dc8c8",
-  active: "#2ab870",
-  error: "#e04040",
-  completed: "#637585",
-  dead: "#3d5060",
+const STATUS_META: Record<string, { color: string; label: string; live?: boolean }> = {
+  active: { color: "#2ab870", label: "Active", live: true },
+  running: { color: "#4dc8c8", label: "Running", live: true },
+  idle: { color: "#4080a0", label: "Idle" },
+  error: { color: "#e04040", label: "Error" },
+  completed: { color: "#637585", label: "Completed" },
+  dead: { color: "#3d5060", label: "Dead" },
 };
 
-function AgentNode({ data }: NodeProps) {
-  const domainColor =
-    DOMAIN_COLORS[data.domain as keyof typeof DOMAIN_COLORS] ?? "#4dc8c8";
-  const statusColor = STATUS_COLORS[data.status] ?? "#637585";
+// Lane display order (most operationally relevant first).
+const STATUS_ORDER = ["active", "running", "idle", "error", "completed", "dead"];
+
+const PLUGIN_LABELS: Record<string, string> = {
+  claude_code: "Claude Code",
+  gemini_cli: "Gemini CLI",
+  codex_cli: "Codex CLI",
+  opencode: "OpenCode",
+  kiro_cli: "Kiro",
+  antigravity: "Antigravity",
+  custom: "Custom",
+};
+
+interface FlatAgent {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  domain: string;
+  childCount: number;
+  hasParent: boolean;
+}
+
+function flatten(nodes: AgentHierarchyNode[], hasParent = false, out: FlatAgent[] = []): FlatAgent[] {
+  for (const n of nodes) {
+    out.push({
+      id: n.id,
+      name: n.name,
+      type: n.type,
+      status: n.status,
+      domain: n.domain,
+      childCount: n.children.length,
+      hasParent,
+    });
+    if (n.children.length) flatten(n.children, true, out);
+  }
+  return out;
+}
+
+// ── Tile ──────────────────────────────────────────────────────────────────────
+
+function AgentTile({ agent, index }: { agent: FlatAgent; index: number }) {
+  const domainColor = DOMAIN_COLORS[agent.domain as keyof typeof DOMAIN_COLORS] ?? "#4dc8c8";
+  const meta = STATUS_META[agent.status] ?? { color: "#637585", label: agent.status };
+  // Shorten the "plugin · project" name to just the leaf for the title line.
+  const display = agent.name.includes(" · ") ? agent.name.split(" · ").slice(1).join(" · ") : agent.name;
 
   return (
     <div
-      className="bg-surface-2 border rounded px-3 py-2 min-w-[140px] max-w-[180px]"
-      style={{ borderColor: `${domainColor}60` }}
+      className="agent-tile group relative flex flex-col gap-1.5 rounded-lg border border-hairline bg-surface-2 p-3 transition-all duration-150 hover:-translate-y-0.5 hover:border-hairline-bright hover:bg-surface-3"
+      style={{
+        borderLeft: `2px solid ${domainColor}`,
+        animation: `agentRise 240ms ease both`,
+        animationDelay: `${Math.min(index, 24) * 18}ms`,
+      }}
+      title={agent.name}
     >
-      {/* Status pulse */}
-      <div className="flex items-center gap-2 mb-1.5">
+      <div className="flex items-center gap-2">
         <span
-          className="h-2 w-2 rounded-full flex-shrink-0"
+          className={meta.live ? "agent-dot-live" : ""}
           style={{
-            backgroundColor: statusColor,
-            boxShadow: data.status === "running" ? `0 0 6px ${statusColor}` : undefined,
+            display: "inline-block",
+            height: 8,
+            width: 8,
+            borderRadius: 9999,
+            background: meta.color,
+            flexShrink: 0,
+            // @ts-expect-error CSS custom property
+            "--glow": `${meta.color}88`,
+            animation: meta.live ? "agentGlow 1.8s ease-in-out infinite" : undefined,
           }}
         />
+        <span className="truncate text-[12px] font-medium text-ink-primary">{display}</span>
+        {agent.childCount > 0 && (
+          <span
+            className="ml-auto inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-mono text-ink-tertiary"
+            style={{ background: `${domainColor}1a`, color: domainColor }}
+            title={`${agent.childCount} sub-agents`}
+          >
+            <GitBranch className="h-2.5 w-2.5" />
+            {agent.childCount}
+          </span>
+        )}
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="font-mono text-[10px] text-ink-tertiary">
+          {PLUGIN_LABELS[agent.type] ?? agent.type}
+        </span>
         <span
-          className="text-xs font-mono uppercase tracking-widest truncate"
-          style={{ color: domainColor }}
+          className="font-mono text-[9px] uppercase tracking-wider"
+          style={{ color: meta.color }}
         >
-          {data.domain}
+          {meta.label}
         </span>
       </div>
-      <p className="text-xs text-ink-primary font-medium truncate" title={data.name}>
-        {data.name}
-      </p>
-      <p className="text-xs text-ink-tertiary font-mono mt-0.5">{data.type}</p>
     </div>
   );
 }
 
-const nodeTypes = { agentNode: AgentNode };
-
-// ── Layout helper (simple tree layout) ───────────────────────────────────────
-
-function flattenHierarchy(
-  nodes: AgentHierarchyNode[],
-  parentId: string | null = null,
-  depth = 0,
-  xOffset = 0
-): { nodes: Node[]; edges: Edge[]; width: number } {
-  const rfNodes: Node[] = [];
-  const rfEdges: Edge[] = [];
-
-  const XGAP = 200;
-  const YGAP = 100;
-  const NODE_WIDTH = 180;
-
-  let totalWidth = 0;
-  let xCursor = xOffset;
-
-  for (const node of nodes) {
-    const childResult =
-      node.children.length > 0
-        ? flattenHierarchy(node.children, node.id, depth + 1, xCursor)
-        : { nodes: [], edges: [], width: NODE_WIDTH };
-
-    const nodeX = node.children.length > 0
-      ? xCursor + childResult.width / 2 - NODE_WIDTH / 2
-      : xCursor;
-
-    rfNodes.push({
-      id: node.id,
-      type: "agentNode",
-      position: { x: nodeX, y: depth * YGAP },
-      data: {
-        name: node.name,
-        type: node.type,
-        status: node.status,
-        domain: node.domain,
-      },
-    });
-
-    if (parentId) {
-      rfEdges.push({
-        id: `e-${parentId}-${node.id}`,
-        source: parentId,
-        target: node.id,
-        animated: node.status === "running",
-        style: { stroke: "#263445", strokeWidth: 1.5 },
-        markerEnd: { type: MarkerType.ArrowClosed, color: "#263445" },
-      });
-    }
-
-    rfNodes.push(...childResult.nodes);
-    rfEdges.push(...childResult.edges);
-
-    const itemWidth = Math.max(NODE_WIDTH, childResult.width);
-    xCursor += itemWidth + XGAP;
-    totalWidth += itemWidth + XGAP;
-  }
-
-  return { nodes: rfNodes, edges: rfEdges, width: Math.max(totalWidth - XGAP, NODE_WIDTH) };
-}
-
-// ── Observatory ───────────────────────────────────────────────────────────────
+// ── Observatory ────────────────────────────────────────────────────────────────
 
 interface AgentObservatoryProps {
   hierarchy: AgentHierarchyNode[];
@@ -133,51 +123,104 @@ interface AgentObservatoryProps {
 }
 
 export function AgentObservatory({ hierarchy, className = "" }: AgentObservatoryProps) {
-  const [rfNodes, setRfNodes, onNodesChange] = useNodesState([]);
-  const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState([]);
+  const agents = useMemo(() => flatten(hierarchy), [hierarchy]);
+  const [filter, setFilter] = useState<string | null>(null);
 
-  useEffect(() => {
-    const { nodes, edges } = flattenHierarchy(hierarchy);
-    setRfNodes(nodes);
-    setRfEdges(edges);
-  }, [hierarchy, setRfNodes, setRfEdges]);
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const a of agents) c[a.status] = (c[a.status] ?? 0) + 1;
+    return c;
+  }, [agents]);
+
+  // Lanes present in the data, in priority order.
+  const lanes = STATUS_ORDER.filter((s) => (counts[s] ?? 0) > 0);
+  const visibleLanes = filter ? lanes.filter((s) => s === filter) : lanes;
+
+  if (agents.length === 0) {
+    return (
+      <div
+        className={`relative flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-hairline bg-surface-1 ${className}`}
+        style={{ minHeight: 260 }}
+      >
+        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-hairline bg-surface-2 text-accent">
+          <Telescope className="h-5 w-5" />
+        </div>
+        <p className="text-sm text-ink-secondary">The observatory is quiet</p>
+        <p className="max-w-xs text-center text-xs text-ink-ghost">
+          Start a Claude Code, Gemini, Codex, or Kiro session — agents appear here live as they spin up.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div
-      className={`relative rounded border border-hairline bg-canvas ${className}`}
-      style={{ height: 400 }}
+      className={`relative overflow-hidden rounded-xl border border-hairline bg-surface-1 ${className}`}
     >
-      {hierarchy.length === 0 ? (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <p className="text-sm text-ink-tertiary">
-            No agents yet — start a Claude Code session to see it appear here.
-          </p>
-        </div>
-      ) : (
-        <ReactFlow
-          nodes={rfNodes}
-          edges={rfEdges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          nodeTypes={nodeTypes}
-          fitView
-          fitViewOptions={{ padding: 0.3 }}
-          proOptions={{ hideAttribution: true }}
+      {/* faint constellation grid backdrop */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.5]"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.035) 1px, transparent 0)",
+          backgroundSize: "32px 32px",
+        }}
+      />
+
+      {/* Stat / filter bar */}
+      <div className="relative flex flex-wrap items-center gap-2 border-b border-hairline px-4 py-3">
+        <button
+          onClick={() => setFilter(null)}
+          className={`rounded-md px-2.5 py-1 text-xs font-mono transition-colors ${
+            filter === null ? "bg-surface-3 text-ink-primary" : "text-ink-tertiary hover:text-ink-secondary"
+          }`}
         >
-          <Background color="#263445" gap={24} size={1} />
-          <Controls
-            className="!bg-surface-2 !border-hairline"
-            showInteractive={false}
-          />
-          <MiniMap
-            className="!bg-surface-1 !border-hairline"
-            nodeColor={(n) =>
-              DOMAIN_COLORS[n.data?.domain as keyof typeof DOMAIN_COLORS] ?? "#4dc8c8"
-            }
-            maskColor="#07090daa"
-          />
-        </ReactFlow>
-      )}
+          All {agents.length}
+        </button>
+        {lanes.map((s) => {
+          const meta = STATUS_META[s]!;
+          const on = filter === s;
+          return (
+            <button
+              key={s}
+              onClick={() => setFilter(on ? null : s)}
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-mono transition-colors ${
+                on ? "bg-surface-3 text-ink-primary" : "text-ink-tertiary hover:text-ink-secondary"
+              }`}
+            >
+              <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: meta.color }} />
+              {meta.label} {counts[s]}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Lanes */}
+      <div className="relative max-h-[440px] overflow-y-auto p-4">
+        <div className="flex flex-col gap-5">
+          {visibleLanes.map((s) => {
+            const meta = STATUS_META[s]!;
+            const laneAgents = agents.filter((a) => a.status === s);
+            return (
+              <div key={s}>
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.color }} />
+                  <span className="label-caps" style={{ color: meta.color }}>
+                    {meta.label}
+                  </span>
+                  <span className="font-mono text-[10px] text-ink-ghost">{laneAgents.length}</span>
+                  <span className="ml-2 h-px flex-1 bg-hairline" />
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                  {laneAgents.map((a, i) => (
+                    <AgentTile key={a.id} agent={a} index={i} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

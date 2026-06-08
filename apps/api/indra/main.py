@@ -27,6 +27,7 @@ logger = structlog.get_logger()
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from indra.plugins import (
+        AntigravityPlugin,
         ClaudeCodePlugin,
         CodexCliPlugin,
         GeminiCliPlugin,
@@ -52,6 +53,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         CodexCliPlugin(),
         KiroCliPlugin(),
         OpenCodePlugin(),
+        AntigravityPlugin(),
     ]:
         plugin_manager.register(plugin)
     await plugin_manager.initialize_all()

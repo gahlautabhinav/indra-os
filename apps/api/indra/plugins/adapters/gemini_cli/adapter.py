@@ -161,15 +161,10 @@ class GeminiCliPlugin(AbstractPlugin):
                         continue
                     results.append(info)
 
-        # 2. Fall back to .pb file metadata (no event content, just identifiers)
-        if _CONVERSATIONS_DIR.exists() and not active_only:
-            pb_files = sorted(
-                _CONVERSATIONS_DIR.glob("*.pb"),
-                key=lambda f: f.stat().st_mtime,
-                reverse=True,
-            )
-            for pb in pb_files:
-                results.append(_info_from_pb_path(pb))
+        # NOTE: ~/.gemini/antigravity/conversations/*.pb is owned by the
+        # dedicated Antigravity adapter (it decodes task titles from the IDE's
+        # SQLite state store), so it is intentionally NOT scanned here to avoid
+        # double-counting those conversations.
 
         return results[offset: offset + limit]
 

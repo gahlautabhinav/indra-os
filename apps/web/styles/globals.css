@@ -121,6 +121,20 @@
     background: var(--indra-accent-dim);
     color: var(--indra-ink-primary);
   }
+
+  /* Live status pulse for active agents (Agent Observatory) */
+  @keyframes agentGlow {
+    0%, 100% { box-shadow: 0 0 0 0 var(--glow, rgba(42, 184, 112, 0.5)); }
+    50%      { box-shadow: 0 0 0 4px transparent; }
+  }
+  @keyframes agentRise {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .agent-tile { animation: none !important; }
+    .agent-dot-live { animation: none !important; }
+  }
 }
 
 @layer components {

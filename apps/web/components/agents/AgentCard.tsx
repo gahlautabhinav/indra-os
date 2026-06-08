@@ -27,6 +27,7 @@ const PLUGIN_LABELS: Record<string, string> = {
   codex_cli: "Codex CLI",
   opencode: "OpenCode",
   kiro_cli: "Kiro",
+  antigravity: "Antigravity",
   custom: "Custom",
 };
 
