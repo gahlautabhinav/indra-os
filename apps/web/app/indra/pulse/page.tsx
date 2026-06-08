@@ -67,7 +67,11 @@ export default function PulsePage() {
 
   // Intercept WebSocket messages for the live feed
   useEffect(() => {
-    const wsUrl = (process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8000") + "/ws/connect";
+    const token = typeof window !== "undefined" ? localStorage.getItem("indra_token") : null;
+    const wsUrl =
+      (process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8333") +
+      "/ws/connect" +
+      (token ? `?token=${encodeURIComponent(token)}` : "");
     const ws = new WebSocket(wsUrl);
 
     ws.onmessage = (msg) => {

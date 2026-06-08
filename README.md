@@ -46,9 +46,9 @@ cp .env.example .env
 docker compose -f infrastructure/docker-compose.yml up
 
 # 4. Access
-# Frontend: http://localhost:3000
-# API:      http://localhost:8000
-# API Docs: http://localhost:8000/docs
+# Frontend: http://localhost:3333
+# API:      http://localhost:8333
+# API Docs: http://localhost:8333/docs
 ```
 
 ## Development

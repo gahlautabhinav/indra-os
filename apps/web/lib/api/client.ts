@@ -5,7 +5,23 @@ import type {
   AgentHierarchyNode,
   AgentMessage,
   AgentProfile,
+  AlliancesResponse,
+  ChannelsResponse,
+  Checkpoint,
+  CommunicationOverview,
+  ContextWindowsResponse,
+  CoordinationTask,
   CostSummary,
+  DiscoveryRegistry,
+  Escalation,
+  ExecutionRunsResponse,
+  ExecutionStats,
+  FoundationsOverview,
+  PervasionOverview,
+  RuntimeError,
+  SessionEventsResponse,
+  ShareAllocation,
+  TelemetryMetrics,
   DashboardData,
   DecomposeResponse,
   ExecuteResponse,
@@ -51,7 +67,7 @@ import type {
   WorkspaceFileList,
 } from "@indra/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8333";
 
 function createClient(): AxiosInstance {
   const client = axios.create({
@@ -84,6 +100,46 @@ function createClient(): AxiosInstance {
 }
 
 export const apiClient = createClient();
+
+// ── Session normalization ─────────────────────────────────────────────────────
+// Raw shape returned by GET /sessions (SessionListResponse + SessionSummary).
+interface SessionApiSummary {
+  id: string;
+  external_id: string | null;
+  plugin_type: string;
+  project_path: string | null;
+  status: Session["status"];
+  token_count: number;
+  cost_usd: number;
+  started_at: string;
+  ended_at: string | null;
+  event_count: number;
+}
+
+interface SessionListApiResponse {
+  sessions: SessionApiSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+function normalizeSession(s: SessionApiSummary): Session {
+  return {
+    id: s.id,
+    external_id: s.external_id,
+    plugin_type: s.plugin_type,
+    project_path: s.project_path,
+    status: s.status,
+    started_at: s.started_at,
+    ended_at: s.ended_at,
+    created_at: s.started_at,
+    metadata: {
+      token_count: s.token_count,
+      cost_usd: s.cost_usd,
+      event_count: s.event_count,
+    },
+  };
+}
 
 // ── Typed API helpers ─────────────────────────────────────────────────────────
 
@@ -126,7 +182,22 @@ export const indraApi = {
     status?: string;
   }) =>
     apiClient
-      .get<PaginatedResponse<Session>>("/sessions", { params })
+      // The API returns SessionListResponse: { sessions, total, limit, offset }
+      // with token_count / cost_usd / event_count as FLAT fields. Normalize to
+      // the canonical PaginatedResponse<Session> shape the UI consumes so a
+      // backend rename can't silently blank the sessions list again.
+      .get<SessionListApiResponse>("/sessions", { params })
+      .then((r) => ({
+        items: r.data.sessions.map(normalizeSession),
+        total: r.data.total,
+        limit: r.data.limit,
+        offset: r.data.offset,
+      }) satisfies PaginatedResponse<Session>),
+
+  // Live conversation timeline for one session (prompts, responses, tool calls)
+  getSessionEvents: (sessionId: string, limit?: number) =>
+    apiClient
+      .get<SessionEventsResponse>(`/sessions/${sessionId}/events`, { params: { limit } })
       .then((r) => r.data),
 
   // MCP
@@ -355,8 +426,45 @@ export const indraApi = {
   // Errors / Nagah
   listErrors: () =>
     apiClient
-      .get<{ errors: unknown[]; total: number }>("/errors")
+      .get<{ errors: RuntimeError[]; total: number }>("/errors")
       .then((r) => r.data),
+
+  acknowledgeError: (errorId: string) =>
+    apiClient
+      .post<{ acknowledged: boolean; error_id: string }>(`/errors/${errorId}/acknowledge`)
+      .then((r) => r.data),
+
+  // Cleanup / Apanah
+  cleanupAgent: (agentId: string) =>
+    apiClient.post<{ deva: string; agent_id: string; status: string }>(`/cleanup/agents/${agentId}`).then((r) => r.data),
+
+  // Recovery / Krkalah
+  getRecoveryStatus: () =>
+    apiClient.get<{ deva: string; active_recoveries: number }>("/recovery/status").then((r) => r.data),
+
+  recoverAgent: (agentId: string) =>
+    apiClient.post<{ deva: string; agent_id: string; status: string }>(`/recovery/agents/${agentId}`).then((r) => r.data),
+
+  // Checkpoints / Kurmah
+  listCheckpoints: () =>
+    apiClient.get<{ deva: string; checkpoints: Checkpoint[]; total: number }>("/checkpoints").then((r) => r.data),
+
+  createCheckpoint: (body: { agent_id: string; label?: string; state?: Record<string, unknown> }) =>
+    apiClient.post<{ deva: string; agent_id: string; label: string | null; status: string }>("/checkpoints", body).then((r) => r.data),
+
+  // Coordination / Samanah
+  listCoordinationTasks: () =>
+    apiClient.get<{ deva: string; tasks: CoordinationTask[]; total: number }>("/coordination/tasks").then((r) => r.data),
+
+  assignCoordinationTask: (body: { task_id?: string; agent_id?: string; [k: string]: unknown }) =>
+    apiClient.post<{ deva: string; status: string }>("/coordination/assign", body).then((r) => r.data),
+
+  // Escalations / Udanah
+  listEscalations: () =>
+    apiClient.get<{ deva: string; escalations: Escalation[]; total: number }>("/escalations").then((r) => r.data),
+
+  createEscalation: (body: { reason: string; agent_id?: string; priority?: string }) =>
+    apiClient.post<{ deva: string; reason: string; status: string }>("/escalations", body).then((r) => r.data),
 
   // Storage / Prthivi
   listWorkspaces: () =>
@@ -547,4 +655,44 @@ export const indraApi = {
   // Optimization / PRAJAPATI
   getOptimizationRecommendations: () =>
     apiClient.get<OptimizationReport>("/optimization/recommendations").then((r) => r.data),
+
+  // ── Agnih / Execution (VASU) ──
+  listExecutionRuns: (params?: { status?: string; limit?: number }) =>
+    apiClient.get<ExecutionRunsResponse>("/execution/runs", { params }).then((r) => r.data),
+  getExecutionStats: () =>
+    apiClient.get<ExecutionStats>("/execution/stats").then((r) => r.data),
+
+  // ── Akasah / Context (VASU) ──
+  listContextWindows: (params?: { active_only?: boolean; limit?: number }) =>
+    apiClient.get<ContextWindowsResponse>("/context/windows", { params }).then((r) => r.data),
+
+  // ── Vayuh / Communication (VASU) ──
+  listChannels: (params?: { active_only?: boolean; limit?: number }) =>
+    apiClient.get<ChannelsResponse>("/communication/channels", { params }).then((r) => r.data),
+  getCommunicationOverview: () =>
+    apiClient.get<CommunicationOverview>("/communication/overview").then((r) => r.data),
+
+  // ── Amshah / Shares (ADITYA) ──
+  getShareAllocation: () =>
+    apiClient.get<ShareAllocation>("/shares/allocation").then((r) => r.data),
+
+  // ── Dhata / Foundations (ADITYA) ──
+  getFoundations: () =>
+    apiClient.get<FoundationsOverview>("/foundations/overview").then((r) => r.data),
+
+  // ── Mitrah / Alliances (ADITYA) ──
+  listAlliances: (params?: { limit?: number }) =>
+    apiClient.get<AlliancesResponse>("/alliances", { params }).then((r) => r.data),
+
+  // ── Pushanah / Discovery (ADITYA) ──
+  getDiscoveryRegistry: () =>
+    apiClient.get<DiscoveryRegistry>("/discovery/registry").then((r) => r.data),
+
+  // ── Vishnuh / Pervasion (ADITYA) ──
+  getPervasionOverview: () =>
+    apiClient.get<PervasionOverview>("/pervasion/overview").then((r) => r.data),
+
+  // ── Vivasvat / Telemetry (ADITYA) ──
+  getTelemetryMetrics: () =>
+    apiClient.get<TelemetryMetrics>("/telemetry/metrics").then((r) => r.data),
 };

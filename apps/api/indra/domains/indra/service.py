@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import UTC, datetime
 
@@ -23,6 +24,23 @@ from indra.models.session import Session
 from indra.models.trace import Trace
 
 log = logging.getLogger(__name__)
+
+# Serializes ALL session syncs in this process (the 30s poller tick and any
+# manual POST /plugins/sync share it) so two overlapping syncs can never both
+# SELECT-miss the same external_id and double-insert a Session/Agent pair.
+_sync_lock = asyncio.Lock()
+
+
+def _session_agent_name(si: object) -> str:
+    """Human-readable agent name for a CLI session: '<plugin> · <project>'."""
+    plugin = getattr(si, "plugin_type", "cli")
+    project_path = getattr(si, "project_path", None)
+    sid = getattr(si, "id", "") or ""
+    if project_path:
+        leaf = project_path.replace("\\", "/").rstrip("/").split("/")[-1]
+        if leaf:
+            return f"{plugin} · {leaf}"
+    return f"{plugin} · {sid[:8]}"
 
 
 class WorkforceService:
@@ -219,52 +237,185 @@ class WorkforceService:
             offset=offset,
         )
 
+    async def get_session_events(self, session_id: str, limit: int = 2000) -> dict | None:
+        """
+        Resolve a DB session to its source CLI adapter and return the live
+        conversation timeline (prompts, responses, tool calls) read straight
+        from the plugin's JSONL — the agent's actual ongoing prompts.
+
+        Returns None if the session id is unknown; a payload with available=False
+        if the adapter can't read events (e.g. binary Gemini protobuf).
+        """
+        import uuid as _uuid
+
+        from indra.plugins import plugin_manager
+
+        try:
+            sid = _uuid.UUID(session_id)
+        except (ValueError, AttributeError):
+            return None
+
+        session = await self.db.scalar(select(Session).where(Session.id == sid))
+        if session is None:
+            return None
+
+        base = {
+            "session_id": str(session.id),
+            "external_id": session.external_id,
+            "plugin_type": session.plugin_type,
+            "project_path": session.project_path,
+            "status": session.status,
+        }
+
+        plugin = plugin_manager.get(session.plugin_type)
+        if plugin is None or not session.external_id:
+            return {**base, "events": [], "total": 0, "available": False}
+
+        try:
+            detail = await plugin.get_session(session.external_id)
+        except Exception:
+            log.exception("Failed to read events for session %s", session.id)
+            return {**base, "events": [], "total": 0, "available": False}
+
+        if detail is None:
+            return {**base, "events": [], "total": 0, "available": False}
+
+        events = [
+            {
+                "id": ev.id,
+                "event_type": ev.event_type,
+                "content": ev.content,
+                "timestamp": ev.timestamp,
+                "input_tokens": ev.input_tokens,
+                "output_tokens": ev.output_tokens,
+                "cost_usd": ev.cost_usd,
+            }
+            for ev in detail.events[:limit]
+        ]
+        return {
+            "deva": "somah",
+            **base,
+            "token_count": detail.token_count,
+            "cost_usd": detail.cost_usd,
+            "events": events,
+            "total": len(events),
+            "available": True,
+            "truncated": len(detail.events) > limit,
+        }
+
     # ── Plugin sync ──────────────────────────────────────────────────────────
+
+    # Map a CLI session status onto the agent status vocabulary the UI uses.
+    _SESSION_TO_AGENT_STATUS = {
+        "active": "active",
+        "ended": "completed",
+        "error": "error",
+    }
 
     async def sync_from_plugins(self) -> SyncResult:
         """
         Pull sessions from all plugins and upsert them into the DB.
-        Called by the background poller every N seconds.
+
+        Each CLI session is mirrored as a workforce Agent row so the agents
+        view and dashboard surface live CLI activity (a running Claude Code /
+        Gemini / Codex session shows up as a working agent). Called by the
+        background poller every N seconds.
         """
+        from decimal import Decimal
+
         from indra.plugins import plugin_manager
 
-        plugin_sessions = await plugin_manager.aggregate_sessions(limit=200)
+        async with _sync_lock:
+            plugin_sessions = await plugin_manager.aggregate_sessions(limit=200)
 
-        created = updated = errors = 0
+            created = updated = errors = 0
 
-        for si in plugin_sessions:
-            try:
-                existing = await self.db.scalar(
-                    select(Session).where(Session.external_id == si.id)
-                )
-                if existing is None:
-                    session = Session(
-                        external_id=si.id,
-                        plugin_type=si.plugin_type,
-                        project_path=si.project_path,
-                        status=si.status,
-                        metadata_={
-                            "token_count": si.token_count,
-                            "cost_usd": si.cost_usd,
-                            **si.metadata,
-                        },
+            for si in plugin_sessions:
+                try:
+                    # Each item runs in its own SAVEPOINT. A failure (bad row,
+                    # unique violation from a race) rolls back ONLY this item
+                    # instead of poisoning the shared transaction for the rest
+                    # of the batch.
+                    async with self.db.begin_nested():
+                        session = await self.db.scalar(
+                            select(Session).where(Session.external_id == si.id)
+                        )
+                        is_new = session is None
+                        token_count = int(si.token_count or 0)
+                        cost = Decimal(str(si.cost_usd or 0))
+
+                        if is_new:
+                            session = Session(
+                                external_id=si.id,
+                                plugin_type=si.plugin_type,
+                                project_path=si.project_path,
+                                status=si.status,
+                                # token_count / cost_usd written LAST so a
+                                # plugin metadata key can never clobber them.
+                                metadata_={
+                                    **si.metadata,
+                                    "token_count": si.token_count,
+                                    "cost_usd": si.cost_usd,
+                                },
+                            )
+                            self.db.add(session)
+                        else:
+                            session.status = si.status
+                            session.metadata_ = {
+                                **session.metadata_,
+                                **si.metadata,
+                                "token_count": si.token_count,
+                                "cost_usd": si.cost_usd,
+                            }
+
+                        # Need the session PK before linking an agent to it.
+                        await self.db.flush()
+
+                        agent_status = self._SESSION_TO_AGENT_STATUS.get(si.status, "idle")
+                        agent_name = _session_agent_name(si)
+
+                        agent = await self.db.scalar(
+                            select(Agent).where(Agent.session_id == session.id)
+                        )
+                        if agent is None:
+                            self.db.add(
+                                Agent(
+                                    name=agent_name,
+                                    type=si.plugin_type,
+                                    status=agent_status,
+                                    domain="rudra",
+                                    plugin_id=si.plugin_type,
+                                    session_id=session.id,
+                                    token_count=token_count,
+                                    cost_usd=cost,
+                                    started_at=session.started_at,
+                                    metadata_={"source": "cli_session", "external_id": si.id},
+                                )
+                            )
+                        else:
+                            agent.status = agent_status
+                            agent.name = agent_name
+                            agent.token_count = token_count
+                            agent.cost_usd = cost
+
+                    # Savepoint committed cleanly — count the outcome.
+                    if is_new:
+                        created += 1
+                    else:
+                        updated += 1
+                except Exception:
+                    log.exception(
+                        "Failed to sync session %s from plugin %s", si.id, si.plugin_type
                     )
-                    self.db.add(session)
-                    created += 1
-                else:
-                    existing.status = si.status
-                    existing.metadata_ = {
-                        **existing.metadata_,
-                        "token_count": si.token_count,
-                        "cost_usd": si.cost_usd,
-                        **si.metadata,
-                    }
-                    updated += 1
-            except Exception:
-                log.exception("Failed to sync session %s from plugin %s", si.id, si.plugin_type)
-                errors += 1
+                    errors += 1
 
-        await self.db.commit()
+            try:
+                await self.db.commit()
+            except Exception:
+                log.exception("sync_from_plugins commit failed — rolling back")
+                await self.db.rollback()
+                raise
+
         return SyncResult(
             synced=len(plugin_sessions),
             created=created,

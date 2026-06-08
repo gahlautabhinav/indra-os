@@ -40,8 +40,8 @@ _ISO_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")
 # Strict UUID-v4 pattern — used to validate session_id before glob.
 _UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
-# Maximum JSONL file size we'll parse (50 MB). Larger files are skipped with a warning.
-_MAX_FILE_BYTES = 50 * 1024 * 1024
+# Maximum JSONL file size we'll parse (200 MB). Larger files are skipped with a warning.
+_MAX_FILE_BYTES = 200 * 1024 * 1024
 
 # Chars to include in content preview before truncation marker.
 _CONTENT_PREVIEW_LEN = 500

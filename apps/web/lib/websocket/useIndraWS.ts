@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 const WS_URL =
-  (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000")
+  (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8333")
     .replace(/^http/, "ws") + "/ws/connect";
 
 export function useIndraWS() {
@@ -17,7 +17,10 @@ export function useIndraWS() {
 
     function connect() {
       try {
-        const socket = new WebSocket(WS_URL);
+        const token = typeof window !== "undefined" ? localStorage.getItem("indra_token") : null;
+        const socket = new WebSocket(
+          `${WS_URL}${token ? `?token=${encodeURIComponent(token)}` : ""}`
+        );
         ws.current = socket;
 
         socket.onopen = () => {

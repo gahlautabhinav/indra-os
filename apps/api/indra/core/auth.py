@@ -15,12 +15,17 @@ from indra.database import get_db
 from indra.models.user import User
 
 _ALLOWED_ALGORITHMS = frozenset({"HS256", "RS256"})
-_DUMMY_HASH = "$2b$12$eImiTXuWVxfM37uY4JANjQ=="  # bcrypt sentinel for timing parity
 
 if settings.jwt_algorithm not in _ALLOWED_ALGORITHMS:
     raise ValueError(f"Invalid JWT_ALGORITHM '{settings.jwt_algorithm}'. Must be HS256 or RS256.")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# A REAL bcrypt hash (of an unguessable value) used as a constant-time decoy when
+# the email doesn't exist, so a wrong-email attempt runs the same bcrypt work as
+# a real one. Must be a valid 60-char hash — a malformed sentinel makes
+# pwd_context.verify() raise and leaks user existence via a 500 vs 401 delta.
+_DUMMY_HASH = pwd_context.hash("indra-login-timing-parity-decoy")
 bearer_scheme = HTTPBearer(auto_error=False)
 router = APIRouter()
 
@@ -47,7 +52,12 @@ def _hash_password(password: str) -> str:
 
 
 def _verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)  # type: ignore[no-any-return]
+    # Never let a malformed/legacy stored hash raise — that would 500 the login
+    # endpoint and leak account state. Treat any verify failure as "no match".
+    try:
+        return bool(pwd_context.verify(plain, hashed))
+    except Exception:
+        return False
 
 
 def _create_access_token(payload: dict[str, Any]) -> str:

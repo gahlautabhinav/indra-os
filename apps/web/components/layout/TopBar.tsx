@@ -1,9 +1,56 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Search, LogOut } from "lucide-react";
 import { useUIStore } from "@/lib/store/uiStore";
 import { CivilizationPulse } from "@/components/civilization/CivilizationPulse";
 import { NotificationPanel } from "@/components/notifications/NotificationPanel";
+
+function AccountMenu() {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  function logout() {
+    localStorage.removeItem("indra_token");
+    router.replace("/login");
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex h-7 w-7 items-center justify-center rounded-full border border-hairline bg-surface-3 transition-colors hover:border-hairline-bright"
+        title="Account"
+      >
+        <span className="font-mono text-xs text-ink-secondary">A</span>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-9 z-50 w-44 overflow-hidden rounded-lg border border-hairline bg-surface-2 shadow-[var(--shadow-floating)]">
+          <div className="border-b border-hairline px-3 py-2">
+            <p className="text-xs font-medium text-ink-secondary">Signed in</p>
+            <p className="font-mono text-[10px] text-ink-ghost">admin</p>
+          </div>
+          <button
+            onClick={logout}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-ink-secondary transition-colors hover:bg-surface-3 hover:text-critical"
+          >
+            <LogOut className="h-3.5 w-3.5" /> Log out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function TopBar() {
   const openCommandEther = useUIStore((s) => s.openCommandEther);
@@ -37,9 +84,7 @@ export function TopBar() {
       <div className="flex items-center gap-3">
         <CivilizationPulse />
         <NotificationPanel />
-        <div className="h-7 w-7 rounded-full bg-surface-3 border border-hairline flex items-center justify-center">
-          <span className="text-xs font-mono text-ink-secondary">A</span>
-        </div>
+        <AccountMenu />
       </div>
     </header>
   );

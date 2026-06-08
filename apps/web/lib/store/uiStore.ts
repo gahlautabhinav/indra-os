@@ -16,7 +16,7 @@ interface UIState {
 }
 
 export const useUIStore = create<UIState>((set) => ({
-  sigilBarExpanded: false,
+  sigilBarExpanded: true,
   commandEtherOpen: false,
   activeDomain: "indra",
   activeModule: null,

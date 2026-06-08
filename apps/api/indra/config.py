@@ -9,14 +9,16 @@ class Settings(BaseSettings):
 
     jwt_secret: str = "dev_secret"
     jwt_algorithm: str = "HS256"
-    jwt_access_token_expire_minutes: int = 15
+    # 30 days — stay signed in until explicit logout (local dev tool). Override
+    # via JWT_ACCESS_TOKEN_EXPIRE_MINUTES for a shorter lifetime in production.
+    jwt_access_token_expire_minutes: int = 43200
     jwt_refresh_token_expire_days: int = 7
 
     environment: str = "development"
     log_level: str = "DEBUG"
 
     otel_endpoint: str = "http://localhost:4317"
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = "http://localhost:3333"
 
     openai_api_key: str = ""
     embedding_model: str = "text-embedding-3-small"

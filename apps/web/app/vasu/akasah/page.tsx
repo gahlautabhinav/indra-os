@@ -1,34 +1,69 @@
 "use client";
 
-import { Infinity } from "lucide-react";
+import { useContextWindows } from "@/lib/api/hooks";
+import { DevaPageHeader, StatTile, MeterBar, VASU } from "@/components/common/DevaScaffold";
 
-const ACCENT = "#d4843a";
+const PRESSURE_COLOR: Record<string, string> = {
+  healthy: "#2ab870",
+  moderate: "#4dc8c8",
+  high: "#e0a030",
+  critical: "#e04040",
+};
 
 export default function AkasahPage() {
-  return (
-    <div className="p-6">
-      <p className="label-caps mb-1" style={{ color: ACCENT }}>Ākāśaḥ · Context</p>
-      <h1 className="font-bold tracking-tight text-ink-primary mb-2" style={{ fontSize: "28px", letterSpacing: "-0.8px" }}>
-        Context Manager
-      </h1>
-      <p className="text-sm text-ink-tertiary mb-8">Context window management and prompt assembly</p>
+  const { data, isLoading } = useContextWindows({ active_only: true, limit: 120 });
+  const windows = data?.windows ?? [];
 
-      <div
-        className="rounded-[12px] border border-hairline border-dashed flex flex-col items-center justify-center py-20 gap-4"
-        style={{ borderTop: `2px solid ${ACCENT}` }}
-      >
-        <div
-          className="w-14 h-14 rounded-full flex items-center justify-center"
-          style={{ background: `${ACCENT}14` }}
-        >
-          <Infinity className="w-7 h-7" style={{ color: ACCENT, opacity: 0.6 }} />
-        </div>
-        <div className="text-center">
-          <p className="label-caps text-ink-ghost mb-1">Planned — Phase 8</p>
-          <p className="text-sm text-ink-tertiary max-w-sm">
-            Ākāśaḥ will manage context windows, token budgeting, and dynamic prompt assembly across agents.
-          </p>
-        </div>
+  return (
+    <div className="space-y-6 p-6">
+      <DevaPageHeader
+        accent={VASU}
+        deva="Ākāśaḥ"
+        role="Context & Space"
+        title="The Context Field"
+        sanskrit="आकाशः"
+        description="the ether holding each agent's finite token-space — live context-window pressure."
+      />
+
+      <div className="flex flex-wrap gap-3">
+        <StatTile accent={VASU} label="Active Windows" value={data?.total ?? 0} />
+        <StatTile accent="#4dc8c8" label="Tokens In Use" value={(data?.aggregate_used ?? 0).toLocaleString()} />
+        <StatTile
+          accent={(data?.aggregate_pct ?? 0) > 70 ? "#e0a030" : "#2ab870"}
+          label="Aggregate Fill"
+          value={`${data?.aggregate_pct ?? 0}%`}
+        />
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-hairline bg-surface-1">
+        {isLoading ? (
+          <div className="py-12 text-center text-sm text-ink-ghost">Measuring context windows…</div>
+        ) : windows.length === 0 ? (
+          <div className="py-16 text-center text-sm text-ink-ghost">No active sessions to measure.</div>
+        ) : (
+          <ul className="divide-y divide-hairline">
+            {windows.map((w) => {
+              const color = PRESSURE_COLOR[w.pressure] ?? "#637585";
+              const project = w.project_path?.split(/[\\/]/).pop() ?? w.plugin_type;
+              return (
+                <li key={w.session_id} className="px-4 py-3">
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <span className="text-sm text-ink-secondary">{project}</span>
+                    <span className="font-mono text-[10px] text-ink-ghost">{w.plugin_type}</span>
+                    <span className="ml-auto rounded px-2 py-0.5 text-[10px] font-mono uppercase" style={{ background: `${color}22`, color }}>
+                      {w.pressure}
+                    </span>
+                  </div>
+                  <MeterBar pct={w.used_pct} accent={color} />
+                  <div className="mt-1 flex justify-between font-mono text-[10px] text-ink-ghost">
+                    <span>{w.tokens_used.toLocaleString()} tok</span>
+                    <span>{w.used_pct}% of {(w.context_window / 1000).toFixed(0)}k</span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
     </div>
   );

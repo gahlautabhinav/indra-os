@@ -38,6 +38,38 @@ export interface Session {
   metadata: Record<string, unknown>;
 }
 
+// ── Session conversation timeline / Somah detail ───────────────────────────
+export type SessionEventType =
+  | "user_message"
+  | "assistant_message"
+  | "tool_call"
+  | "tool_result";
+
+export interface SessionEventItem {
+  id: string;
+  event_type: SessionEventType | string;
+  content: string | null;
+  timestamp: string;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+}
+
+export interface SessionEventsResponse {
+  deva?: string;
+  session_id: string;
+  external_id: string | null;
+  plugin_type: string;
+  project_path: string | null;
+  status: string;
+  token_count?: number;
+  cost_usd?: number;
+  events: SessionEventItem[];
+  total: number;
+  available: boolean;
+  truncated?: boolean;
+}
+
 // ── Trace ──────────────────────────────────────────────────────────────────
 export type TraceStatus = "running" | "ok" | "error" | "unset";
 
@@ -218,6 +250,218 @@ export interface ProcessInfo {
   agent_id: string | null;
   agent_name: string | null;
   started_at: string | null;
+}
+
+// ── Errors / Nagah ─────────────────────────────────────────────────────────
+
+export interface RuntimeError {
+  id: string;
+  type: string;
+  title: string;
+  severity: "critical" | "warning" | "info";
+  source_type: string;
+  source_id: string;
+  domain: string;
+  created_at: string;
+  error: string | null;
+}
+
+// ── Checkpoints / Kurmah ───────────────────────────────────────────────────
+
+export interface Checkpoint {
+  id: string;
+  agent_id: string;
+  label: string | null;
+  created_at: string;
+  state?: Record<string, unknown>;
+}
+
+// ── Coordination / Samanah ─────────────────────────────────────────────────
+
+export interface CoordinationTask {
+  id: string;
+  name?: string;
+  agent_id: string | null;
+  status: string;
+  created_at?: string;
+}
+
+// ── Escalations / Udanah ───────────────────────────────────────────────────
+
+export interface Escalation {
+  id: string;
+  reason: string;
+  agent_id: string | null;
+  priority: string;
+  status: string;
+  created_at?: string;
+}
+
+// ── Phase-8 devas, now live (VASU/ADITYA computed endpoints) ───────────────
+
+export interface ExecutionRun {
+  id: string;
+  name: string;
+  status: string;
+  agent_id: string | null;
+  agent_name: string | null;
+  duration_ms: number | null;
+  error: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+}
+export interface ExecutionRunsResponse {
+  deva: string;
+  runs: ExecutionRun[];
+  total: number;
+}
+export interface ExecutionStats {
+  deva: string;
+  total: number;
+  running: number;
+  completed: number;
+  failed: number;
+  pending: number;
+  avg_duration_ms: number;
+}
+
+export interface ContextWindow {
+  session_id: string;
+  plugin_type: string;
+  project_path: string | null;
+  tokens_used: number;
+  context_window: number;
+  used_pct: number;
+  pressure: "healthy" | "moderate" | "high" | "critical";
+  status: string;
+}
+export interface ContextWindowsResponse {
+  deva: string;
+  windows: ContextWindow[];
+  total: number;
+  aggregate_used: number;
+  aggregate_capacity: number;
+  aggregate_pct: number;
+}
+
+export interface Channel {
+  channel_id: string;
+  plugin_type: string;
+  project_path: string | null;
+  participants: number;
+  status: string;
+  last_activity: string | null;
+}
+export interface ChannelsResponse {
+  deva: string;
+  channels: Channel[];
+  total: number;
+}
+export interface CommunicationOverview {
+  deva: string;
+  active_channels: number;
+  total_channels: number;
+  participants: number;
+  channels_by_protocol: Record<string, number>;
+}
+
+export interface ShareEntry {
+  domain: string;
+  agents: number;
+  tokens: number;
+  cost_usd: number;
+  token_share_pct: number;
+  cost_share_pct: number;
+}
+export interface ShareAllocation {
+  deva: string;
+  shares: ShareEntry[];
+  total_tokens: number;
+  total_cost_usd: number;
+}
+
+export interface FoundationEntity {
+  entity: string;
+  rows: number;
+}
+export interface FoundationsOverview {
+  deva: string;
+  entities: FoundationEntity[];
+  total_rows: number;
+  schema_version: string | null;
+  devas: number;
+  domains: number;
+  infrastructure: { database: string; schema_version: string | null };
+}
+
+export interface Alliance {
+  type: string;
+  source_id: string;
+  source_name: string;
+  target_id: string;
+  target_name: string;
+  domain: string;
+}
+export interface AlliancesResponse {
+  deva: string;
+  alliances: Alliance[];
+  total: number;
+  linked_agents: number;
+}
+
+export interface DiscoveryResource {
+  type?: string;
+  name?: string;
+  kind: string;
+  status: string;
+  transport?: string;
+}
+export interface DiscoveryRegistry {
+  deva: string;
+  plugins: DiscoveryResource[];
+  mcp_servers: DiscoveryResource[];
+  counts: {
+    plugins: number;
+    mcp_servers: number;
+    active_agents: number;
+    reachable_total: number;
+  };
+}
+
+export interface DomainReach {
+  domain: string;
+  agents: number;
+  active_agents: number;
+  reach_pct: number;
+}
+export interface PervasionOverview {
+  deva: string;
+  reach: DomainReach[];
+  domains_reached: number;
+  domains_total: number;
+  pervasion_pct: number;
+  total_agents: number;
+  active_agents: number;
+  total_sessions: number;
+}
+
+export interface TelemetryMetrics {
+  deva: string;
+  host: {
+    cpu_percent: number;
+    cpu_count: number;
+    memory_percent: number;
+    memory_used_gb: number;
+    memory_total_gb: number;
+    process_count: number;
+  };
+  workload: {
+    total_tokens: number;
+    total_cost_usd: number;
+    active_sessions: number;
+    total_traces: number;
+  };
 }
 
 // ── Agent Identity / Jivatma ──────────────────────────────────────────────

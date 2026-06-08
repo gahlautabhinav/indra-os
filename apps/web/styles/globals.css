@@ -187,4 +187,111 @@
     text-transform: uppercase;
     color: var(--indra-ink-tertiary);
   }
+
+  /* ── Form controls — used app-wide ── */
+  .input-field {
+    appearance: none;
+    width: 100%;
+    background: var(--indra-surface-2);
+    border: 1px solid var(--indra-hairline);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--indra-ink-primary);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+  }
+  .input-field::placeholder {
+    color: var(--indra-ink-ghost);
+  }
+  .input-field:hover {
+    border-color: var(--indra-hairline-bright);
+  }
+  .input-field:focus,
+  .input-field:focus-visible {
+    outline: none;
+    border-color: var(--indra-accent);
+    box-shadow: 0 0 0 3px var(--indra-accent-focus);
+    background: var(--indra-surface-1);
+  }
+  .input-field:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  /* Native select caret on dark surface */
+  select.input-field {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23637585' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+    cursor: pointer;
+  }
+  select.input-field option {
+    background: var(--indra-surface-2);
+    color: var(--indra-ink-primary);
+  }
+  textarea.input-field {
+    resize: vertical;
+    min-height: 76px;
+  }
+
+  /* Kill the browser autofill white/yellow background on dark inputs */
+  .input-field:-webkit-autofill,
+  .input-field:-webkit-autofill:hover,
+  .input-field:-webkit-autofill:focus,
+  .input-field:-webkit-autofill:active {
+    -webkit-text-fill-color: var(--indra-ink-primary);
+    caret-color: var(--indra-ink-primary);
+    -webkit-box-shadow: 0 0 0 1000px var(--indra-surface-2) inset;
+    box-shadow: 0 0 0 1000px var(--indra-surface-2) inset;
+    transition: background-color 9999s ease-in-out 0s;
+  }
+
+  /* ── Buttons ── */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 8px;
+    padding: 9px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--indra-canvas);
+    background: var(--indra-accent);
+    border: 1px solid transparent;
+    transition: background var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--indra-accent-hover);
+    box-shadow: 0 0 0 3px var(--indra-accent-focus);
+  }
+  .btn-primary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--indra-ink-secondary);
+    background: var(--indra-surface-2);
+    border: 1px solid var(--indra-hairline);
+    transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    border-color: var(--indra-hairline-bright);
+    color: var(--indra-ink-primary);
+    background: var(--indra-surface-3);
+  }
+  .btn-ghost:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
 }

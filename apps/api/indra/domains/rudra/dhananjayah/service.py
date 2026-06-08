@@ -7,6 +7,7 @@ Dhananjayah (धनञ्जय) = conqueror of wealth — watches over the vita
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 
 import psutil
@@ -43,32 +44,49 @@ class DhananjayahService:
             if isinstance(pid, int):
                 agent_by_pid[pid] = a
 
-        processes: list[ProcessRead] = []
+        # psutil is blocking; run it in a thread so the whole event loop doesn't
+        # freeze for the duration of the scan.
+        processes = await asyncio.get_running_loop().run_in_executor(
+            None, self._collect_processes, agent_by_pid, all_processes, limit
+        )
+        return ProcessListResponse(processes=processes, total=len(processes))
 
-        for proc in psutil.process_iter(
-            ["pid", "name", "status", "cpu_percent", "memory_info", "create_time"]
-        ):
+    def _collect_processes(
+        self,
+        agent_by_pid: dict[int, Agent],
+        all_processes: bool,
+        limit: int,
+    ) -> list[ProcessRead]:
+        # Pass 1: cheap pid+name only, decide what to keep BEFORE the expensive
+        # memory/time lookups. Default view keeps only relevant/agent procs, so
+        # we never enrich hundreds of irrelevant system processes.
+        keep: list[psutil.Process] = []
+        for proc in psutil.process_iter(["pid", "name"]):
+            try:
+                name = proc.info.get("name") or ""
+                pid = proc.info.get("pid", 0)
+                if all_processes or self._is_relevant(name) or pid in agent_by_pid:
+                    keep.append(proc)
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+
+        processes: list[ProcessRead] = []
+        for proc in keep:
             try:
                 info = proc.as_dict(
-                    attrs=["pid", "name", "status", "cpu_percent", "memory_info", "create_time"]
+                    attrs=["pid", "name", "status", "memory_info", "create_time"]
                 )
-                name = info.get("name") or ""
                 pid = info.get("pid", 0)
-
-                if not all_processes and not self._is_relevant(name) and pid not in agent_by_pid:
-                    continue
-
                 mem_info = info.get("memory_info")
                 memory_mb = round(mem_info.rss / 1024 / 1024, 1) if mem_info else 0.0
                 create_time = info.get("create_time")
                 agent = agent_by_pid.get(pid)
-
                 processes.append(
                     ProcessRead(
                         pid=pid,
-                        name=name,
+                        name=info.get("name") or "",
                         status=info.get("status") or "unknown",
-                        cpu_percent=round(info.get("cpu_percent") or 0.0, 2),
+                        cpu_percent=0.0,  # instantaneous %CPU needs a sampling interval; omitted for speed
                         memory_mb=memory_mb,
                         agent_id=str(agent.id) if agent else None,
                         agent_name=agent.name if agent else None,
@@ -83,9 +101,7 @@ class DhananjayahService:
                 continue
 
         processes.sort(key=lambda p: p.memory_mb, reverse=True)
-        processes = processes[:limit]
-
-        return ProcessListResponse(processes=processes, total=len(processes))
+        return processes[:limit]
 
     async def terminate_process(self, pid: int) -> bool:
         try:

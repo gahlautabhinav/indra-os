@@ -13,7 +13,11 @@ from indra.core.events import IndraEvent
 
 log = logging.getLogger(__name__)
 
-POLL_INTERVAL = 5  # seconds
+POLL_INTERVAL = 5  # seconds — lightweight WS status diffing cadence
+# Persist plugin sessions into the DB every Nth tick. Full session aggregation
+# streams up to 200 JSONL files (some very large), so it runs less often than
+# the WS poll to keep IO load bounded. 6 * 5s = ~30s.
+SYNC_EVERY_N_TICKS = 6
 
 
 class AgentPoller:
@@ -25,6 +29,7 @@ class AgentPoller:
     def __init__(self) -> None:
         self._task: asyncio.Task | None = None
         self._prev_statuses: dict[str, str] = {}  # session_id → status
+        self._tick = 0
 
     def start(self) -> None:
         if self._task is None or self._task.done():
@@ -38,12 +43,28 @@ class AgentPoller:
         log.info("AgentPoller stopped")
 
     async def _loop(self) -> None:
+        from indra.database import AsyncSessionLocal
+        from indra.domains.indra.service import WorkforceService
         from indra.plugins import plugin_manager
         from indra.websockets.manager import manager as ws_manager
 
         while True:
             try:
                 await asyncio.sleep(POLL_INTERVAL)
+                self._tick += 1
+
+                # Persist the latest plugin sessions into the DB so the REST
+                # API and UI reflect live CLI activity without requiring a
+                # manual POST /plugins/sync. Throttled to every Nth tick; runs
+                # in its own short-lived session and a sync failure must not
+                # kill the poll loop.
+                if self._tick % SYNC_EVERY_N_TICKS == 1:
+                    try:
+                        async with AsyncSessionLocal() as db:
+                            await WorkforceService(db).sync_from_plugins()
+                    except Exception:
+                        log.exception("Poller session sync failed — UI may be stale")
+
                 poll_results = await plugin_manager.poll_all()
 
                 current: dict[str, str] = {}

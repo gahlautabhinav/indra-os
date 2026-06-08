@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from indra.database import get_db
@@ -69,6 +69,18 @@ async def list_sessions(
         plugin_type=plugin_type,
         status=status,
     )
+
+
+@router.get("/sessions/{session_id}/events")
+async def get_session_events(
+    session_id: str,
+    limit: int = Query(2000, ge=1, le=10000),
+    svc: WorkforceService = Depends(get_service),
+) -> dict:
+    result = await svc.get_session_events(session_id, limit)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return result
 
 
 # ── Plugin ────────────────────────────────────────────────────────────────────

@@ -16,6 +16,7 @@ from indra.core.exceptions import IndraException
 from indra.core.rate_limit import limiter
 from indra.core.telemetry import setup_telemetry
 from indra.database import engine, get_db
+from indra.middleware.auth_gate import AuthGateMiddleware
 from indra.middleware.logging import RequestLoggingMiddleware
 from indra.middleware.security import SecurityHeadersMiddleware
 from indra.redis import close_redis, get_redis
@@ -98,10 +99,13 @@ def create_app() -> FastAPI:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
-    # Middleware order: outermost first (processed top-to-bottom on request, bottom-to-top on response)
+    # Middleware order: last added = outermost (runs first on request). CORS is
+    # outermost so preflight + headers wrap everything, including 401s from the
+    # auth gate, which sits just inside it.
     app.add_middleware(RequestLoggingMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(SlowAPIMiddleware)
+    app.add_middleware(AuthGateMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,

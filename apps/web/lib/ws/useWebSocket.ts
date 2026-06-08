@@ -6,7 +6,7 @@ import type { WSEvent } from "@indra/types";
 
 type WSStatus = "connecting" | "connected" | "disconnected" | "error";
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8000";
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8333";
 const BACKOFF_STEPS = [1000, 2000, 4000, 8000, 16000, 30000];
 
 export function useWebSocket() {
@@ -42,7 +42,10 @@ export function useWebSocket() {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     setStatus("connecting");
-    const ws = new WebSocket(`${WS_URL}/ws/connect`);
+    const token = typeof window !== "undefined" ? localStorage.getItem("indra_token") : null;
+    const ws = new WebSocket(
+      `${WS_URL}/ws/connect${token ? `?token=${encodeURIComponent(token)}` : ""}`
+    );
     wsRef.current = ws;
 
     ws.onopen = () => {

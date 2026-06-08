@@ -96,6 +96,16 @@ export function useSessions(
   });
 }
 
+export function useSessionEvents(sessionId: string | null, limit = 4000) {
+  return useQuery({
+    queryKey: ["sessions", sessionId, "events", limit],
+    queryFn: () => indraApi.getSessionEvents(sessionId!, limit),
+    enabled: !!sessionId,
+    refetchInterval: 8_000,
+    staleTime: 6_000,
+  });
+}
+
 // ── MCP ───────────────────────────────────────────────────────────────────
 
 export function useMCPServers() {
@@ -384,6 +394,113 @@ export function useErrors() {
     queryFn: indraApi.listErrors,
     refetchInterval: 15_000,
     staleTime: 14_000,
+  });
+}
+
+export function useAcknowledgeError() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.acknowledgeError,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QK.errors });
+    },
+  });
+}
+
+// ── Apanah — Cleanup ──────────────────────────────────────────────────────────
+
+export function useCleanupAgent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.cleanupAgent,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QK.agents() });
+    },
+  });
+}
+
+// ── Krkalah — Recovery ────────────────────────────────────────────────────────
+
+export function useRecoveryStatus() {
+  return useQuery({
+    queryKey: ["recovery", "status"],
+    queryFn: indraApi.getRecoveryStatus,
+    refetchInterval: 10_000,
+    staleTime: 9_000,
+  });
+}
+
+export function useRecoverAgent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.recoverAgent,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["recovery", "status"] });
+      void qc.invalidateQueries({ queryKey: QK.agents() });
+    },
+  });
+}
+
+// ── Kurmah — Checkpoints ──────────────────────────────────────────────────────
+
+export function useCheckpoints() {
+  return useQuery({
+    queryKey: ["checkpoints"],
+    queryFn: indraApi.listCheckpoints,
+    refetchInterval: 15_000,
+    staleTime: 14_000,
+  });
+}
+
+export function useCreateCheckpoint() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.createCheckpoint,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["checkpoints"] });
+    },
+  });
+}
+
+// ── Samanah — Coordination ────────────────────────────────────────────────────
+
+export function useCoordinationTasks() {
+  return useQuery({
+    queryKey: ["coordination", "tasks"],
+    queryFn: indraApi.listCoordinationTasks,
+    refetchInterval: 10_000,
+    staleTime: 9_000,
+  });
+}
+
+export function useAssignCoordinationTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.assignCoordinationTask,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["coordination", "tasks"] });
+    },
+  });
+}
+
+// ── Udanah — Escalations ──────────────────────────────────────────────────────
+
+export function useEscalations() {
+  return useQuery({
+    queryKey: ["escalations"],
+    queryFn: indraApi.listEscalations,
+    refetchInterval: 15_000,
+    staleTime: 14_000,
+  });
+}
+
+export function useCreateEscalation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.createEscalation,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["escalations"] });
+    },
   });
 }
 
@@ -881,5 +998,122 @@ export function useOptimizationRecommendations() {
     queryFn: indraApi.getOptimizationRecommendations,
     refetchInterval: 30_000,
     staleTime: 29_000,
+  });
+}
+
+// ── Agnih — Execution (VASU) ──────────────────────────────────────────────────
+
+export function useExecutionRuns(params?: { status?: string; limit?: number }) {
+  return useQuery({
+    queryKey: ["execution", "runs", params],
+    queryFn: () => indraApi.listExecutionRuns(params),
+    refetchInterval: 5_000,
+    staleTime: 4_000,
+  });
+}
+
+export function useExecutionStats() {
+  return useQuery({
+    queryKey: ["execution", "stats"],
+    queryFn: indraApi.getExecutionStats,
+    refetchInterval: 5_000,
+    staleTime: 4_000,
+  });
+}
+
+// ── Akasah — Context (VASU) ───────────────────────────────────────────────────
+
+export function useContextWindows(params?: { active_only?: boolean; limit?: number }) {
+  return useQuery({
+    queryKey: ["context", "windows", params],
+    queryFn: () => indraApi.listContextWindows(params),
+    refetchInterval: 8_000,
+    staleTime: 7_000,
+  });
+}
+
+// ── Vayuh — Communication (VASU) ──────────────────────────────────────────────
+
+export function useChannels(params?: { active_only?: boolean; limit?: number }) {
+  return useQuery({
+    queryKey: ["communication", "channels", params],
+    queryFn: () => indraApi.listChannels(params),
+    refetchInterval: 8_000,
+    staleTime: 7_000,
+  });
+}
+
+export function useCommunicationOverview() {
+  return useQuery({
+    queryKey: ["communication", "overview"],
+    queryFn: indraApi.getCommunicationOverview,
+    refetchInterval: 8_000,
+    staleTime: 7_000,
+  });
+}
+
+// ── Amshah — Shares (ADITYA) ──────────────────────────────────────────────────
+
+export function useShareAllocation() {
+  return useQuery({
+    queryKey: ["shares", "allocation"],
+    queryFn: indraApi.getShareAllocation,
+    refetchInterval: 15_000,
+    staleTime: 14_000,
+  });
+}
+
+// ── Dhata — Foundations (ADITYA) ──────────────────────────────────────────────
+
+export function useFoundations() {
+  return useQuery({
+    queryKey: ["foundations"],
+    queryFn: indraApi.getFoundations,
+    refetchInterval: 30_000,
+    staleTime: 29_000,
+  });
+}
+
+// ── Mitrah — Alliances (ADITYA) ───────────────────────────────────────────────
+
+export function useAlliances(params?: { limit?: number }) {
+  return useQuery({
+    queryKey: ["alliances", params],
+    queryFn: () => indraApi.listAlliances(params),
+    refetchInterval: 15_000,
+    staleTime: 14_000,
+  });
+}
+
+// ── Pushanah — Discovery (ADITYA) ─────────────────────────────────────────────
+
+export function useDiscoveryRegistry() {
+  return useQuery({
+    queryKey: ["discovery", "registry"],
+    queryFn: indraApi.getDiscoveryRegistry,
+    refetchInterval: 15_000,
+    staleTime: 14_000,
+  });
+}
+
+// ── Vishnuh — Pervasion (ADITYA) ──────────────────────────────────────────────
+
+export function usePervasionOverview() {
+  return useQuery({
+    queryKey: ["pervasion", "overview"],
+    queryFn: indraApi.getPervasionOverview,
+    refetchInterval: 10_000,
+    staleTime: 9_000,
+  });
+}
+
+// ── Vivasvat — Telemetry (ADITYA) ─────────────────────────────────────────────
+
+export function useTelemetryMetrics() {
+  return useQuery({
+    queryKey: ["telemetry", "metrics"],
+    queryFn: indraApi.getTelemetryMetrics,
+    refetchInterval: 5_000,
+    staleTime: 4_000,
   });
 }

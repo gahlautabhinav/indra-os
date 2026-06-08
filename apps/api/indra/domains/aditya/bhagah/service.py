@@ -106,7 +106,7 @@ class BhagahService:
                 COALESCE(SUM(token_count), 0) AS token_count,
                 COUNT(id) AS agent_count
             FROM agents
-            WHERE created_at >= NOW() - INTERVAL ':days days'
+            WHERE created_at >= NOW() - make_interval(days => :days)
             GROUP BY period
             ORDER BY period DESC
             """

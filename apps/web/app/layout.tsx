@@ -2,9 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "@/styles/globals.css";
 import { Providers } from "@/components/providers";
-import { TopBar } from "@/components/layout/TopBar";
-import { SigilBar } from "@/components/layout/SigilBar";
-import { CommandEther } from "@/components/command/CommandEther";
+import { AppShell } from "@/components/layout/AppShell";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -33,16 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`dark ${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <body className="bg-canvas text-ink-primary antialiased">
         <Providers>
-          <div className="flex h-screen overflow-hidden">
-            <SigilBar />
-            <div className="flex flex-1 flex-col overflow-hidden">
-              <TopBar />
-              <main className="flex-1 overflow-auto bg-canvas">
-                {children}
-              </main>
-            </div>
-          </div>
-          <CommandEther />
+          <AppShell>{children}</AppShell>
         </Providers>
       </body>
     </html>
