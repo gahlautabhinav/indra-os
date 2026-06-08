@@ -7,6 +7,8 @@ from the real sessions table.
 
 from __future__ import annotations
 
+from typing import cast
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -72,7 +74,7 @@ async def list_context_windows(
             }
         )
 
-    windows.sort(key=lambda w: w["used_pct"], reverse=True)
+    windows.sort(key=lambda w: cast(float, w["used_pct"]), reverse=True)
     return {
         "deva": _DEVA,
         "windows": windows,

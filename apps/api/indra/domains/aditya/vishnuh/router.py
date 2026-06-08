@@ -23,23 +23,27 @@ _DOMAINS = ["indra", "vasu", "rudra", "aditya", "prajapati"]
 
 @router.get("/pervasion/overview", tags=["vishnuh"])
 async def pervasion_overview(db: AsyncSession = Depends(get_db)) -> dict:
-    agents_by_domain = dict(
-        (await db.execute(select(Agent.domain, func.count()).group_by(Agent.domain))).all()
-    )
-    active_by_domain = dict(
-        (
+    agents_by_domain: dict[str, int] = {
+        d: c
+        for d, c in (
+            await db.execute(select(Agent.domain, func.count()).group_by(Agent.domain))
+        ).all()
+    }
+    active_by_domain: dict[str, int] = {
+        d: c
+        for d, c in (
             await db.execute(
                 select(Agent.domain, func.count())
                 .where(Agent.status.in_(["active", "running"]))
                 .group_by(Agent.domain)
             )
         ).all()
-    )
+    }
 
     reach = []
     for domain in _DOMAINS:
-        total = int(agents_by_domain.get(domain, 0))
-        active = int(active_by_domain.get(domain, 0))
+        total = agents_by_domain.get(domain, 0)
+        active = active_by_domain.get(domain, 0)
         reach.append(
             {
                 "domain": domain,
@@ -49,9 +53,10 @@ async def pervasion_overview(db: AsyncSession = Depends(get_db)) -> dict:
             }
         )
 
-    total_agents = sum(r["agents"] for r in reach)
-    active_agents = sum(r["active_agents"] for r in reach)
-    domains_reached = sum(1 for r in reach if r["agents"] > 0)
+    # Aggregate from the typed int dicts (not the mixed-value reach dicts).
+    total_agents = sum(agents_by_domain.values())
+    active_agents = sum(active_by_domain.values())
+    domains_reached = sum(1 for v in agents_by_domain.values() if v > 0)
     total_sessions = await db.scalar(select(func.count()).select_from(Session)) or 0
 
     return {

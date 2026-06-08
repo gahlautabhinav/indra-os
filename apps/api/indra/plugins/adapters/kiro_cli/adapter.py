@@ -6,6 +6,7 @@ import contextlib
 import json
 import logging
 import uuid
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 from ...base import (
@@ -32,7 +33,8 @@ def _is_valid_uuid(value: str) -> bool:
 
 def _read_json_safe(path: Path) -> dict:
     try:
-        return json.loads(path.read_text(encoding="utf-8", errors="replace"))
+        data = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+        return data if isinstance(data, dict) else {}
     except Exception:
         return {}
 
@@ -221,7 +223,9 @@ class KiroCliPlugin(AbstractPlugin):
             metadata=info.metadata,
         )
 
-    async def stream_events(self, session_id: str, since_event_id: str | None = None):
+    async def stream_events(
+        self, session_id: str, since_event_id: str | None = None
+    ) -> AsyncIterator[SessionEvent]:
         detail = await self.get_session(session_id)
         if detail is None:
             return

@@ -51,7 +51,7 @@ async def _execute_action(schedule_id: str, action_type: str, action_config: dic
             from indra.domains.rudra.devadattah.service import DevadattahService
 
             async with AsyncSessionLocal() as db:
-                await DevadattahService.create(
+                await DevadattahService().create(
                     db,
                     NotificationCreate(
                         title=action_config.get("title", "Scheduled Notification"),

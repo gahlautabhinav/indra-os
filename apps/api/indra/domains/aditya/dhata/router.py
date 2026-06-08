@@ -7,6 +7,8 @@ counts, schema version, and infrastructure health. Computed live.
 
 from __future__ import annotations
 
+from typing import cast
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -49,7 +51,7 @@ async def foundations_overview(db: AsyncSession = Depends(get_db)) -> dict:
     for name, model in _ENTITIES.items():
         count = await db.scalar(select(func.count()).select_from(model)) or 0
         entities.append({"entity": name, "rows": int(count)})
-    entities.sort(key=lambda e: e["rows"], reverse=True)
+    entities.sort(key=lambda e: cast(int, e["rows"]), reverse=True)
 
     try:
         schema_version = await db.scalar(text("SELECT version_num FROM alembic_version"))

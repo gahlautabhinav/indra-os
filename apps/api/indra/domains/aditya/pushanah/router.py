@@ -25,10 +25,10 @@ async def discovery_registry(db: AsyncSession = Depends(get_db)) -> dict:
     from indra.plugins import plugin_manager
 
     health = await plugin_manager.health_summary()
-    plugins = [
-        {"type": pt, "kind": "plugin", "status": health.get(pt).value if health.get(pt) else "unknown"}
-        for pt in plugin_manager.plugin_types
-    ]
+    plugins = []
+    for pt in plugin_manager.plugin_types:
+        h = health.get(pt)
+        plugins.append({"type": pt, "kind": "plugin", "status": h.value if h else "unknown"})
 
     mcp_rows = list((await db.execute(select(MCPServer))).scalars())
     mcp = [

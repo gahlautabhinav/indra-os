@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ShieldCheck, Check } from "lucide-react";
+import { ShieldCheck, Check } from "lucide-react";
 import type { RuntimeError } from "@indra/types";
 import { useErrors, useAcknowledgeError } from "@/lib/api/hooks";
 import { DevaHeader, StatPill, DevaEmptyState, RUDRA } from "@/components/rudra/DevaHeader";

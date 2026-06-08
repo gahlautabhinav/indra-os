@@ -168,7 +168,7 @@ function SessionDetail({ session }: { session: Session }) {
           <div className="px-4 py-8 text-center text-sm text-ink-ghost">Reading session log…</div>
         ) : convo && !convo.available ? (
           <div className="px-4 py-8 text-center text-xs text-ink-ghost">
-            This adapter ({session.plugin_type}) stores conversations in a binary format INDRA can't decode yet.
+            This adapter ({session.plugin_type}) stores conversations in a binary format INDRA can&apos;t decode yet.
           </div>
         ) : events.length === 0 ? (
           <div className="px-4 py-8 text-center text-sm text-ink-ghost">No readable turns in this session.</div>

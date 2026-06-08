@@ -6,6 +6,7 @@ import contextlib
 import json
 import logging
 import sqlite3
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 from ...base import (
@@ -238,7 +239,9 @@ class CodexCliPlugin(AbstractPlugin):
             metadata=info.metadata,
         )
 
-    async def stream_events(self, session_id: str, since_event_id: str | None = None):
+    async def stream_events(
+        self, session_id: str, since_event_id: str | None = None
+    ) -> AsyncIterator[SessionEvent]:
         detail = await self.get_session(session_id)
         if detail is None:
             return

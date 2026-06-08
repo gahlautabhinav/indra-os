@@ -48,7 +48,7 @@ async def create_workflow(
     db: AsyncSession = Depends(get_db),
     ctx: UserContext = Depends(get_current_user),
 ) -> WorkflowRead:
-    return await TvastahService.create_workflow(db, body, user_id=ctx.user_id)
+    return await TvastahService.create_workflow(db, body, user_id=uuid.UUID(ctx.id))
 
 
 @router.patch("/workflows/aditya/{workflow_id}", response_model=WorkflowRead, tags=["workflows-builder"])

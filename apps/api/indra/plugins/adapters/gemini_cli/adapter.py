@@ -12,8 +12,10 @@ The history/ and tmp/ dirs are also scanned for JSON/JSONL fallback.
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import json
 import logging
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -43,7 +45,8 @@ def _mtime_iso(path: Path) -> str:
 
 def _try_read_json(path: Path) -> dict | list | None:
     try:
-        return json.loads(path.read_text(encoding="utf-8", errors="replace"))
+        data = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+        return data if isinstance(data, (dict, list)) else None
     except Exception:
         return None
 
@@ -184,7 +187,7 @@ class GeminiCliPlugin(AbstractPlugin):
                     if isinstance(data, dict):
                         info = _info_from_json_session(data, p)
                         return SessionDetail(**{
-                            **info.__dict__,  # type: ignore[attr-defined]
+                            **dataclasses.asdict(info),
                             "events": [],
                         })
                 else:
@@ -192,7 +195,7 @@ class GeminiCliPlugin(AbstractPlugin):
                     if raw_events:
                         info = _info_from_json_session(raw_events[0], p)
                         return SessionDetail(**{
-                            **info.__dict__,  # type: ignore[attr-defined]
+                            **dataclasses.asdict(info),
                             "events": [
                                 SessionEvent(
                                     id=f"{session_id}_{i}",
@@ -221,7 +224,9 @@ class GeminiCliPlugin(AbstractPlugin):
             )
         return None
 
-    async def stream_events(self, session_id: str, since_event_id: str | None = None):
+    async def stream_events(
+        self, session_id: str, since_event_id: str | None = None
+    ) -> AsyncIterator[SessionEvent]:
         detail = await self.get_session(session_id)
         if detail is None:
             return

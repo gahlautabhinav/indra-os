@@ -7,6 +7,8 @@ its participants. Computed live from sessions + agents.
 
 from __future__ import annotations
 
+import uuid
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,15 +34,17 @@ async def list_channels(
     sessions = list((await db.execute(q)).scalars())
 
     # participant count per session (agents bound to it)
-    counts = dict(
-        (
+    counts: dict[uuid.UUID, int] = {
+        row[0]: row[1]
+        for row in (
             await db.execute(
                 select(Agent.session_id, func.count())
                 .where(Agent.session_id.is_not(None))
                 .group_by(Agent.session_id)
             )
         ).all()
-    )
+        if row[0] is not None
+    }
 
     channels = []
     for s in sessions:
@@ -66,13 +70,14 @@ async def communication_overview(db: AsyncSession = Depends(get_db)) -> dict:
     participants = await db.scalar(
         select(func.count()).select_from(Agent).where(Agent.session_id.is_not(None))
     ) or 0
-    by_plugin = dict(
-        (
+    by_plugin: dict[str, int] = {
+        row[0]: row[1]
+        for row in (
             await db.execute(
                 select(Session.plugin_type, func.count()).group_by(Session.plugin_type)
             )
         ).all()
-    )
+    }
     return {
         "deva": _DEVA,
         "active_channels": int(active_channels),

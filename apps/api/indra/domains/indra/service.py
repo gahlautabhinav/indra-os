@@ -340,11 +340,11 @@ class WorkforceService:
                         session = await self.db.scalar(
                             select(Session).where(Session.external_id == si.id)
                         )
-                        is_new = session is None
                         token_count = int(si.token_count or 0)
                         cost = Decimal(str(si.cost_usd or 0))
 
-                        if is_new:
+                        if session is None:
+                            is_new = True
                             session = Session(
                                 external_id=si.id,
                                 plugin_type=si.plugin_type,
@@ -360,6 +360,7 @@ class WorkforceService:
                             )
                             self.db.add(session)
                         else:
+                            is_new = False
                             session.status = si.status
                             session.metadata_ = {
                                 **session.metadata_,

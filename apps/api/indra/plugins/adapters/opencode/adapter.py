@@ -17,6 +17,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 from ...base import (
@@ -36,7 +37,8 @@ _SESSIONS_DIR = _OPENCODE_DIR / "sessions"
 
 def _read_json_safe(path: Path) -> dict:
     try:
-        return json.loads(path.read_text(encoding="utf-8", errors="replace"))
+        data = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+        return data if isinstance(data, dict) else {}
     except Exception:
         return {}
 
@@ -144,13 +146,14 @@ class OpenCodePlugin(AbstractPlugin):
         candidate = _SESSIONS_DIR / session_id
         if not candidate.exists():
             # Search for a dir whose session.json has matching id
-            candidate = next(
+            found = next(
                 (d for d in _SESSIONS_DIR.iterdir() if d.is_dir()
                  and _read_json_safe(d / "session.json").get("id") == session_id),
                 None,
             )
-        if candidate is None or not candidate.exists():
-            return None
+            if found is None or not found.exists():
+                return None
+            candidate = found
 
         meta = _read_json_safe(candidate / "session.json")
         raw_events = _parse_jsonl(candidate / "messages.jsonl")
@@ -181,7 +184,9 @@ class OpenCodePlugin(AbstractPlugin):
             metadata={"model": meta.get("model"), "dir": str(candidate)},
         )
 
-    async def stream_events(self, session_id: str, since_event_id: str | None = None):
+    async def stream_events(
+        self, session_id: str, since_event_id: str | None = None
+    ) -> AsyncIterator[SessionEvent]:
         detail = await self.get_session(session_id)
         if detail is None:
             return

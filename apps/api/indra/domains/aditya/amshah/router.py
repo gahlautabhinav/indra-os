@@ -7,6 +7,8 @@ the real agents table.
 
 from __future__ import annotations
 
+from typing import cast
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -53,7 +55,7 @@ async def share_allocation(db: AsyncSession = Depends(get_db)) -> dict:
                 "cost_share_pct": round(v["cost_usd"] / total_cost * 100, 1),
             }
         )
-    shares.sort(key=lambda s: s["tokens"], reverse=True)
+    shares.sort(key=lambda s: cast(int, s["tokens"]), reverse=True)
     return {
         "deva": _DEVA,
         "shares": shares,
