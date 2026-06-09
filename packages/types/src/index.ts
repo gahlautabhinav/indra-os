@@ -429,6 +429,42 @@ export interface DiscoveryRegistry {
   };
 }
 
+export interface ClaudeSkill {
+  name: string;
+  description: string;
+}
+export interface ClaudeSubagent {
+  name: string;
+  description: string;
+  model: string | null;
+}
+export interface ClaudeMcp {
+  name: string;
+  scope: string;
+  transport: string;
+  command: string;
+}
+export interface ClaudePlugin {
+  name: string;
+  marketplace: string | null;
+  version: string | null;
+  scope: string;
+}
+export interface ClaudeEnv {
+  skills: ClaudeSkill[];
+  subagents: ClaudeSubagent[];
+  mcp_servers: ClaudeMcp[];
+  plugins: ClaudePlugin[];
+  hooks: { name: string }[];
+  counts: {
+    skills: number;
+    subagents: number;
+    mcp_servers: number;
+    plugins: number;
+    hooks: number;
+  };
+}
+
 export interface DomainReach {
   domain: string;
   agents: number;

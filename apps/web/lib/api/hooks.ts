@@ -1096,6 +1096,15 @@ export function useDiscoveryRegistry() {
   });
 }
 
+export function useClaudeEnv() {
+  return useQuery({
+    queryKey: ["discovery", "claude"],
+    queryFn: indraApi.getClaudeEnv,
+    refetchInterval: 30_000,
+    staleTime: 29_000,
+  });
+}
+
 // ── Vishnuh — Pervasion (ADITYA) ──────────────────────────────────────────────
 
 export function usePervasionOverview() {

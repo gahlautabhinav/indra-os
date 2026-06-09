@@ -51,3 +51,12 @@ async def discovery_registry(db: AsyncSession = Depends(get_db)) -> dict:
             "reachable_total": len(plugins) + len(mcp) + int(active_agents),
         },
     }
+
+
+@router.get("/discovery/claude", tags=["pushanah"])
+async def discovery_claude_env() -> dict:
+    """Everything wired into the local Claude Code environment — skills,
+    subagents, MCP servers, plugins and hooks the user has connected."""
+    from .claude_env import scan_claude_environment
+
+    return scan_claude_environment()

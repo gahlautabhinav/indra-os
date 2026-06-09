@@ -7,6 +7,7 @@ import type {
   AgentProfile,
   AlliancesResponse,
   ChannelsResponse,
+  ClaudeEnv,
   Checkpoint,
   CommunicationOverview,
   ContextWindowsResponse,
@@ -689,6 +690,8 @@ export const indraApi = {
   // ── Pushanah / Discovery (ADITYA) ──
   getDiscoveryRegistry: () =>
     apiClient.get<DiscoveryRegistry>("/discovery/registry").then((r) => r.data),
+  getClaudeEnv: () =>
+    apiClient.get<ClaudeEnv>("/discovery/claude").then((r) => r.data),
 
   // ── Vishnuh / Pervasion (ADITYA) ──
   getPervasionOverview: () =>
