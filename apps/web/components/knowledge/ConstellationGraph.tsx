@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { KnowledgeNode, KnowledgeEdge } from "@indra/types";
 
 // ── Visual vocab ──────────────────────────────────────────────────────────────
@@ -18,7 +18,6 @@ function nodeColor(n: KnowledgeNode): string {
   if (n.entity_type === "plugin") return PLUGIN_COLOR[n.entity_id ?? ""] ?? "#4dc8c8";
   if (n.entity_type === "project") return "#e0b050";
   if (n.entity_type === "mcp_server") return "#9a44d4";
-  // agent — tint by its CLI
   const plugin = (n.properties?.plugin as string) ?? "";
   return PLUGIN_COLOR[plugin] ?? "#8aa0b4";
 }
@@ -30,102 +29,23 @@ const REL_COLOR: Record<string, string> = {
   registered_with: "#9a44d4",
 };
 
-interface P {
+interface Body {
   x: number;
   y: number;
   vx: number;
   vy: number;
+  fx: number | null; // pinned (while dragged) position
+  fy: number | null;
 }
 
-// ── Force layout (compact Fruchterman–Reingold-ish) ───────────────────────────
-
-function layout(nodes: KnowledgeNode[], edges: KnowledgeEdge[], degree: Map<string, number>) {
-  const N = nodes.length;
-  const idx = new Map<string, number>();
-  nodes.forEach((n, i) => idx.set(n.id, i));
-
-  // deterministic pseudo-random initial ring (no Math.random for stable layout)
-  const pos: P[] = nodes.map((n, i) => {
-    const a = (i / Math.max(N, 1)) * Math.PI * 2;
-    const r = 200 + ((i * 53) % 160);
-    return { x: Math.cos(a) * r, y: Math.sin(a) * r, vx: 0, vy: 0 };
-  });
-
-  const links: [number, number][] = [];
-  for (const e of edges) {
-    const a = idx.get(e.from_node_id);
-    const b = idx.get(e.to_node_id);
-    if (a != null && b != null) links.push([a, b]);
-  }
-
-  const K_REP = 1400;
-  const K_SPRING = 0.02;
-  const REST = 90;
-  const K_GRAV = 0.012;
-  const ITER = 240;
-
-  for (let it = 0; it < ITER; it++) {
-    const cool = 1 - it / ITER;
-    for (let i = 0; i < N; i++) {
-      const p = pos[i]!;
-      p.vx = 0;
-      p.vy = 0;
-    }
-    // repulsion
-    for (let i = 0; i < N; i++) {
-      const pi = pos[i]!;
-      for (let j = i + 1; j < N; j++) {
-        const pj = pos[j]!;
-        let dx = pi.x - pj.x;
-        let dy = pi.y - pj.y;
-        let d2 = dx * dx + dy * dy;
-        if (d2 < 0.01) {
-          dx = (i - j) * 0.1 + 0.1;
-          dy = 0.1;
-          d2 = dx * dx + dy * dy;
-        }
-        const f = K_REP / d2;
-        const d = Math.sqrt(d2);
-        const fx = (dx / d) * f;
-        const fy = (dy / d) * f;
-        pi.vx += fx;
-        pi.vy += fy;
-        pj.vx -= fx;
-        pj.vy -= fy;
-      }
-    }
-    // springs
-    for (const [a, b] of links) {
-      const pa = pos[a]!;
-      const pb = pos[b]!;
-      const dx = pb.x - pa.x;
-      const dy = pb.y - pa.y;
-      const d = Math.sqrt(dx * dx + dy * dy) || 1;
-      const f = (d - REST) * K_SPRING;
-      const fx = (dx / d) * f;
-      const fy = (dy / d) * f;
-      pa.vx += fx;
-      pa.vy += fy;
-      pb.vx -= fx;
-      pb.vy -= fy;
-    }
-    // gravity to center (stronger for low-degree nodes so hubs spread out)
-    for (let i = 0; i < N; i++) {
-      const p = pos[i]!;
-      const g = K_GRAV / Math.max(1, (degree.get(nodes[i]!.id) ?? 1) * 0.5);
-      p.vx -= p.x * g;
-      p.vy -= p.y * g;
-    }
-    // integrate (clamped)
-    const max = 18 * cool + 2;
-    for (let i = 0; i < N; i++) {
-      const p = pos[i]!;
-      p.x += Math.max(-max, Math.min(max, p.vx * cool));
-      p.y += Math.max(-max, Math.min(max, p.vy * cool));
-    }
-  }
-  return { pos, idx };
-}
+// d3-force-ish constants
+const K_REP = 1600;
+const K_SPRING = 0.035;
+const REST = 90;
+const K_CENTER = 0.015;
+const VEL_DECAY = 0.6;
+const ALPHA_DECAY = 0.0225;
+const ALPHA_MIN = 0.004;
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
@@ -147,27 +67,146 @@ export function ConstellationGraph({
     return d;
   }, [edges]);
 
-  const { pos, idx } = useMemo(() => layout(nodes, edges, degree), [nodes, edges, degree]);
+  const { idx, links } = useMemo(() => {
+    const m = new Map<string, number>();
+    nodes.forEach((n, i) => m.set(n.id, i));
+    const l: [number, number][] = [];
+    for (const e of edges) {
+      const a = m.get(e.from_node_id);
+      const b = m.get(e.to_node_id);
+      if (a != null && b != null) l.push([a, b]);
+    }
+    return { idx: m, links: l };
+  }, [nodes, edges]);
+
+  const bodies = useRef<Body[]>([]);
+  const alpha = useRef(1);
+  const dragNode = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const [, frame] = useReducer((x: number) => x + 1, 0);
 
   const [view, setView] = useState({ x: 0, y: 0, k: 1 });
   const [hover, setHover] = useState<string | null>(null);
-  const drag = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null);
+  const panRef = useRef<{ sx: number; sy: number; vx: number; vy: number } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef(view);
+  viewRef.current = view;
 
-  // Fit the initial view to the layout bounds.
+  // (re)initialise bodies whenever the node set changes
   useEffect(() => {
-    if (!nodes.length) return;
-    const xs = pos.map((p) => p.x);
-    const ys = pos.map((p) => p.y);
-    const minX = Math.min(...xs), maxX = Math.max(...xs);
-    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const N = nodes.length;
+    bodies.current = nodes.map((_, i) => {
+      const a = (i / Math.max(N, 1)) * Math.PI * 2;
+      const r = 150 + ((i * 53) % 200);
+      return { x: Math.cos(a) * r, y: Math.sin(a) * r, vx: 0, vy: 0, fx: null, fy: null };
+    });
+    alpha.current = 1;
+    // fit view to a rough bound
     const w = wrapRef.current?.clientWidth ?? 900;
-    const pad = 80;
-    const k = Math.min((w - pad) / (maxX - minX || 1), (height - pad) / (maxY - minY || 1), 1.4);
-    setView({ x: w / 2 - ((minX + maxX) / 2) * k, y: height / 2 - ((minY + maxY) / 2) * k, k });
-  }, [pos, nodes.length, height]);
+    setView({ x: w / 2, y: height / 2, k: 0.8 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes]);
 
-  // neighbours of hovered node (for highlight)
+  // one simulation step
+  const tick = useCallback(() => {
+    const b = bodies.current;
+    const N = b.length;
+    if (N === 0) return;
+    const a = alpha.current;
+
+    // repulsion (many-body)
+    for (let i = 0; i < N; i++) {
+      const bi = b[i]!;
+      for (let j = i + 1; j < N; j++) {
+        const bj = b[j]!;
+        let dx = bi.x - bj.x;
+        let dy = bi.y - bj.y;
+        let d2 = dx * dx + dy * dy;
+        if (d2 < 0.01) {
+          dx = (i - j) * 0.1 + 0.1;
+          dy = 0.1;
+          d2 = dx * dx + dy * dy;
+        }
+        const d = Math.sqrt(d2);
+        const f = (K_REP / d2) * a;
+        const fx = (dx / d) * f;
+        const fy = (dy / d) * f;
+        bi.vx += fx;
+        bi.vy += fy;
+        bj.vx -= fx;
+        bj.vy -= fy;
+      }
+    }
+    // springs
+    for (const [u, v] of links) {
+      const bu = b[u]!;
+      const bv = b[v]!;
+      const dx = bv.x - bu.x;
+      const dy = bv.y - bu.y;
+      const d = Math.sqrt(dx * dx + dy * dy) || 1;
+      const f = (d - REST) * K_SPRING * a;
+      const fx = (dx / d) * f;
+      const fy = (dy / d) * f;
+      bu.vx += fx;
+      bu.vy += fy;
+      bv.vx -= fx;
+      bv.vy -= fy;
+    }
+    // centering
+    for (let i = 0; i < N; i++) {
+      const bi = b[i]!;
+      bi.vx -= bi.x * K_CENTER * a;
+      bi.vy -= bi.y * K_CENTER * a;
+    }
+    // integrate
+    for (let i = 0; i < N; i++) {
+      const bi = b[i]!;
+      if (bi.fx != null) {
+        bi.x = bi.fx;
+        bi.y = bi.fy!;
+        bi.vx = 0;
+        bi.vy = 0;
+        continue;
+      }
+      bi.vx *= VEL_DECAY;
+      bi.vy *= VEL_DECAY;
+      bi.x += bi.vx;
+      bi.y += bi.vy;
+    }
+    alpha.current = a + (0 - a) * ALPHA_DECAY;
+  }, [links]);
+
+  // animation loop — runs while there's energy or an active drag
+  const ensureRunning = useCallback(() => {
+    if (rafRef.current != null) return;
+    const loop = () => {
+      tick();
+      frame();
+      if (alpha.current > ALPHA_MIN || dragNode.current != null) {
+        rafRef.current = requestAnimationFrame(loop);
+      } else {
+        rafRef.current = null;
+      }
+    };
+    rafRef.current = requestAnimationFrame(loop);
+  }, [tick]);
+
+  useEffect(() => {
+    ensureRunning();
+    return () => {
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [ensureRunning, nodes]);
+
+  const reheat = useCallback(
+    (a = 0.5) => {
+      alpha.current = Math.max(alpha.current, a);
+      ensureRunning();
+    },
+    [ensureRunning]
+  );
+
   const neighbours = useMemo(() => {
     if (!hover) return null;
     const s = new Set<string>([hover]);
@@ -186,6 +225,16 @@ export function ConstellationGraph({
     return 4;
   }
 
+  // screen → graph coords
+  const toGraph = (clientX: number, clientY: number) => {
+    const rect = wrapRef.current?.getBoundingClientRect();
+    const v = viewRef.current;
+    return {
+      x: (clientX - (rect?.left ?? 0) - v.x) / v.k,
+      y: (clientY - (rect?.top ?? 0) - v.y) / v.k,
+    };
+  };
+
   function onWheel(e: React.WheelEvent) {
     e.preventDefault();
     const rect = wrapRef.current?.getBoundingClientRect();
@@ -193,33 +242,73 @@ export function ConstellationGraph({
     const my = e.clientY - (rect?.top ?? 0);
     const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
     setView((v) => {
-      const k = Math.max(0.2, Math.min(4, v.k * factor));
+      const k = Math.max(0.15, Math.min(4, v.k * factor));
       return { k, x: mx - ((mx - v.x) / v.k) * k, y: my - ((my - v.y) / v.k) * k };
     });
   }
-  function onDown(e: React.MouseEvent) {
-    drag.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
+
+  function nodeMouseDown(e: React.MouseEvent, i: number) {
+    e.stopPropagation();
+    dragNode.current = i;
+    const b = bodies.current[i];
+    if (b) {
+      const g = toGraph(e.clientX, e.clientY);
+      b.fx = g.x;
+      b.fy = g.y;
+    }
+    reheat(0.5);
   }
+
+  function onBgDown(e: React.MouseEvent) {
+    panRef.current = { sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y };
+  }
+
   function onMove(e: React.MouseEvent) {
-    if (!drag.current) return;
-    setView((v) => ({ ...v, x: drag.current!.vx + (e.clientX - drag.current!.x), y: drag.current!.vy + (e.clientY - drag.current!.y) }));
+    const di = dragNode.current;
+    if (di != null) {
+      const b = bodies.current[di];
+      if (b) {
+        const g = toGraph(e.clientX, e.clientY);
+        b.fx = g.x;
+        b.fy = g.y;
+      }
+      reheat(0.3);
+      return;
+    }
+    if (panRef.current) {
+      const p = panRef.current;
+      setView((v) => ({ ...v, x: p.vx + (e.clientX - p.sx), y: p.vy + (e.clientY - p.sy) }));
+    }
   }
+
   function onUp() {
-    drag.current = null;
+    const di = dragNode.current;
+    if (di != null) {
+      const b = bodies.current[di];
+      if (b) {
+        // release pin so it rejoins the simulation where dropped
+        b.fx = null;
+        b.fy = null;
+      }
+      dragNode.current = null;
+      reheat(0.25);
+    }
+    panRef.current = null;
   }
+
+  const b = bodies.current;
 
   return (
     <div
       ref={wrapRef}
-      className="relative overflow-hidden rounded-xl border border-hairline bg-surface-1 select-none"
+      className="relative select-none overflow-hidden rounded-xl border border-hairline bg-surface-1"
       style={{ height }}
       onWheel={onWheel}
-      onMouseDown={onDown}
+      onMouseDown={onBgDown}
       onMouseMove={onMove}
       onMouseUp={onUp}
       onMouseLeave={onUp}
     >
-      {/* starfield backdrop */}
       <div
         className="pointer-events-none absolute inset-0 opacity-60"
         style={{
@@ -227,33 +316,32 @@ export function ConstellationGraph({
           backgroundSize: "30px 30px",
         }}
       />
-      <svg className="absolute inset-0 h-full w-full" style={{ cursor: drag.current ? "grabbing" : "grab" }}>
+      <svg className="absolute inset-0 h-full w-full" style={{ cursor: panRef.current ? "grabbing" : "grab" }}>
         <g transform={`translate(${view.x} ${view.y}) scale(${view.k})`}>
-          {/* edges */}
           {edges.map((e) => {
             const a = idx.get(e.from_node_id);
-            const b = idx.get(e.to_node_id);
-            if (a == null || b == null) return null;
-            const pa = pos[a]!;
-            const pb = pos[b]!;
+            const c = idx.get(e.to_node_id);
+            if (a == null || c == null) return null;
+            const ba = b[a];
+            const bc = b[c];
+            if (!ba || !bc) return null;
             const active = !neighbours || (neighbours.has(e.from_node_id) && neighbours.has(e.to_node_id));
             return (
               <line
                 key={e.id}
-                x1={pa.x}
-                y1={pa.y}
-                x2={pb.x}
-                y2={pb.y}
+                x1={ba.x}
+                y1={ba.y}
+                x2={bc.x}
+                y2={bc.y}
                 stroke={REL_COLOR[e.relationship] ?? "#33455a"}
                 strokeWidth={active ? 1 : 0.5}
                 strokeOpacity={neighbours ? (active ? 0.55 : 0.05) : 0.18}
               />
             );
           })}
-          {/* nodes */}
-          {nodes.map((n) => {
-            const i = idx.get(n.id)!;
-            const p = pos[i]!;
+          {nodes.map((n, i) => {
+            const bi = b[i];
+            if (!bi) return null;
             const c = nodeColor(n);
             const r = radius(n);
             const dim = neighbours ? !neighbours.has(n.id) : false;
@@ -261,9 +349,10 @@ export function ConstellationGraph({
             return (
               <g
                 key={n.id}
-                transform={`translate(${p.x} ${p.y})`}
-                opacity={dim ? 0.22 : 1}
-                style={{ cursor: "pointer" }}
+                transform={`translate(${bi.x} ${bi.y})`}
+                opacity={dim ? 0.2 : 1}
+                style={{ cursor: "grab" }}
+                onMouseDown={(e) => nodeMouseDown(e, i)}
                 onMouseEnter={() => setHover(n.id)}
                 onMouseLeave={() => setHover(null)}
               >
@@ -286,7 +375,6 @@ export function ConstellationGraph({
         </g>
       </svg>
 
-      {/* legend */}
       <div className="absolute bottom-3 left-3 flex flex-wrap gap-x-3 gap-y-1 rounded-md border border-hairline bg-surface-2/80 px-3 py-2 text-[10px] backdrop-blur-sm">
         {[
           ["Plugin", "#4dc8c8"],
@@ -301,7 +389,7 @@ export function ConstellationGraph({
         ))}
       </div>
       <div className="absolute right-3 top-3 rounded-md border border-hairline bg-surface-2/80 px-2.5 py-1 font-mono text-[10px] text-ink-ghost backdrop-blur-sm">
-        scroll = zoom · drag = pan · hover = focus
+        drag nodes · scroll = zoom · drag bg = pan
       </div>
     </div>
   );
