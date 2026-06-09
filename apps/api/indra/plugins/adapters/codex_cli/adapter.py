@@ -152,6 +152,7 @@ def _info_from_index_entry(entry: dict) -> SessionInfo:
         metadata={
             "updated_at": updated_at,
             "model": entry.get("model"),
+            "title": entry.get("thread_name") or entry.get("title"),
         },
     )
 

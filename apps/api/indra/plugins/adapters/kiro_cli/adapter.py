@@ -91,6 +91,16 @@ def _extract_content(raw: dict) -> str | None:
     return str(content) if content else None
 
 
+def _clean_title(title: str | None) -> str | None:
+    """Drop Kiro titles that are actually a filesystem path (it sometimes stores
+    a directory in the title field) so callers fall back to project/id."""
+    if not title:
+        return None
+    t = title.strip()
+    looks_like_path = ("\\" in t or "/" in t or (len(t) >= 2 and t[1] == ":")) and " " not in t
+    return None if looks_like_path else t
+
+
 def _session_from_json_meta(meta: dict, session_id: str, jsonl_path: Path) -> SessionInfo:
     """Build SessionInfo from Kiro's .json metadata file."""
     # Kiro session JSON contains: id, createdAt, updatedAt, workingDirectory, model, etc.
@@ -129,6 +139,7 @@ def _session_from_json_meta(meta: dict, session_id: str, jsonl_path: Path) -> Se
             "updated_at": updated_at,
             "model": meta.get("model"),
             "jsonl_path": str(jsonl_path),
+            "title": _clean_title(meta.get("title")),
         },
     )
 
