@@ -11,7 +11,7 @@ import uuid
 from datetime import UTC, datetime
 
 import structlog
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -94,7 +94,15 @@ class TraceService:
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total: int = (await db.scalar(count_stmt)) or 0
 
-        stmt = stmt.order_by(Trace.created_at.desc()).limit(limit).offset(offset)
+        # Running traces first (live agent work), then most recent — so a
+        # long-running active session whose started_at is days old still
+        # surfaces at the top instead of being pushed past the page limit.
+        running_first = case((Trace.status == "running", 0), else_=1)
+        stmt = (
+            stmt.order_by(running_first, Trace.started_at.desc().nullslast())
+            .limit(limit)
+            .offset(offset)
+        )
         result = await db.execute(stmt)
         traces = result.scalars().all()
 
@@ -258,24 +266,52 @@ class TraceService:
         """
         Build a Vivarta trace + span waterfall from each session's event
         timeline. CLI agents (Claude Code, Antigravity, …) don't emit OpenTelemetry
-        spans, so without this the Trace Center stays empty. Idempotent — sessions
-        that already have a trace (trace_id == external_id) are skipped, so steady-
-        state cost is just the newest untraced sessions per run.
+        spans, so without this the Trace Center stays empty.
+
+        Selection priority:
+          1. ACTIVE sessions are always (re)synthesized so their trace grows as
+             new events stream in — even when an active session's started_at is
+             old (it ranks low by start time but is still live).
+          2. then the newest UNTRACED sessions, to backfill history.
+        ingest_trace upserts by (trace_id, span_id), so re-running is cheap and
+        keeps active traces current.
         """
         from indra.models.session import Session
         from indra.plugins import plugin_manager
 
         existing = set((await db.execute(select(Trace.trace_id))).scalars())
-        rows = list(
+
+        active = list(
+            (
+                await db.execute(
+                    select(Session)
+                    .where(Session.status == "active")
+                    .order_by(Session.started_at.desc())
+                    .limit(limit)
+                )
+            ).scalars()
+        )
+        recent = list(
             (
                 await db.execute(
                     select(Session).order_by(Session.started_at.desc()).limit(80)
                 )
             ).scalars()
         )
-        candidates = [
-            s for s in rows if s.external_id and s.external_id not in existing
-        ][:limit]
+
+        # active first (always refresh), then newest untraced, deduped, capped.
+        candidates: list[Session] = []
+        seen: set[str] = set()
+        for s in active + recent:
+            ext = s.external_id
+            if not ext or ext in seen:
+                continue
+            if s.status != "active" and ext in existing:
+                continue  # already traced and not live → skip
+            seen.add(ext)
+            candidates.append(s)
+            if len(candidates) >= limit:
+                break
 
         synthesized = 0
         for s in candidates:
@@ -299,7 +335,7 @@ class TraceService:
                 trace_id=s.external_id,  # type: ignore[arg-type]
                 name=_session_trace_name(s),
                 session_id=str(s.id),
-                status="ok",
+                status="running" if s.status == "active" else "ok",
                 spans=spans,
             )
             try:
@@ -307,6 +343,21 @@ class TraceService:
                 synthesized += 1
             except Exception:
                 log.exception("trace synth ingest failed", session=s.external_id)
+
+        # Finalize: any trace still marked "running" whose session is no longer
+        # active becomes "ok" — keeps the Active count honest without re-reading
+        # event timelines.
+        await db.execute(
+            update(Trace)
+            .where(
+                Trace.status == "running",
+                Trace.session_id.in_(
+                    select(Session.id).where(Session.status != "active")
+                ),
+            )
+            .values(status="ok")
+        )
+        await db.commit()
         return synthesized
 
 
