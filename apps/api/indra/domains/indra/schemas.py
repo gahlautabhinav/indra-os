@@ -54,6 +54,7 @@ class SessionSummary(BaseModel):
     external_id: str | None
     plugin_type: str
     project_path: str | None
+    title: str | None = None
     status: str
     token_count: int
     cost_usd: float

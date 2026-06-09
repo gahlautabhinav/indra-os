@@ -108,6 +108,7 @@ interface SessionApiSummary {
   external_id: string | null;
   plugin_type: string;
   project_path: string | null;
+  title: string | null;
   status: Session["status"];
   token_count: number;
   cost_usd: number;
@@ -137,6 +138,7 @@ function normalizeSession(s: SessionApiSummary): Session {
       token_count: s.token_count,
       cost_usd: s.cost_usd,
       event_count: s.event_count,
+      title: s.title,
     },
   };
 }

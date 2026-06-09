@@ -228,6 +228,7 @@ class WorkforceService:
                     external_id=s.external_id,
                     plugin_type=s.plugin_type,
                     project_path=s.project_path,
+                    title=s.metadata_.get("title"),
                     status=s.status,
                     token_count=s.metadata_.get("token_count", 0),
                     cost_usd=s.metadata_.get("cost_usd", 0.0),

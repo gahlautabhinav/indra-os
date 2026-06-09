@@ -58,10 +58,11 @@ function StatusDot({ status }: { status: string }) {
 }
 
 function SessionRow({ session, selected, onClick }: { session: Session; selected: boolean; onClick: () => void }) {
+  const meta = session.metadata as Record<string, unknown>;
   const projectName = session.project_path
     ? session.project_path.split(/[\\/]/).pop() ?? session.project_path
-    : "Unknown project";
-  const meta = session.metadata as Record<string, unknown>;
+    : null;
+  const title = (meta?.title as string) || null;
   const tokens = (meta?.token_count as number) ?? 0;
   const cost = (meta?.cost_usd as number) ?? 0;
 
@@ -75,11 +76,15 @@ function SessionRow({ session, selected, onClick }: { session: Session; selected
     >
       <StatusDot status={session.status} />
 
-      <span className="font-mono text-ink-ghost shrink-0" style={{ fontSize: "10px", width: "72px" }}>
-        {session.id.slice(0, 8)}…
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-sm text-ink-secondary">
+          {title ?? projectName ?? `${session.plugin_type} session`}
+        </span>
+        <span className="flex items-center gap-1.5 font-mono text-[10px] text-ink-ghost">
+          <span>{session.id.slice(0, 8)}…</span>
+          {title && projectName && <span className="truncate">· {projectName}</span>}
+        </span>
       </span>
-
-      <span className="text-sm text-ink-secondary truncate flex-1">{projectName}</span>
 
       <PluginBadge pluginType={session.plugin_type} />
 

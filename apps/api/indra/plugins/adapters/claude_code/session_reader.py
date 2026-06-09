@@ -214,7 +214,6 @@ def read_session_summary(jsonl_path: Path) -> dict:
         }
     """
     session_id = _session_id_from_path(jsonl_path)
-    project_path = _decode_project_path(jsonl_path.parent.name)
 
     total_input = 0
     total_output = 0
@@ -222,6 +221,8 @@ def read_session_summary(jsonl_path: Path) -> dict:
     event_count = 0
     min_ts: datetime | None = None
     max_ts: datetime | None = None
+    cwd: str | None = None
+    ai_title: str | None = None
     # Stream — do NOT materialize the full list.
     for raw in _iter_jsonl(jsonl_path):
         ts_str = raw.get("timestamp", "")
@@ -231,12 +232,19 @@ def read_session_summary(jsonl_path: Path) -> dict:
                 min_ts = ts
             if max_ts is None or ts > max_ts:
                 max_ts = ts
+        if cwd is None and raw.get("cwd"):
+            cwd = raw.get("cwd")
+        if raw.get("type") == "ai-title" and raw.get("aiTitle"):
+            ai_title = raw.get("aiTitle")  # keep the latest title
         if raw.get("type") == "assistant":
             inp, out, cost = _extract_usage(raw.get("message") or {})
             total_input += inp
             total_output += out
             total_cost += cost
         event_count += 1
+
+    # Real working directory beats the lossy dash-encoded project dir name.
+    project_path = cwd or _decode_project_path(jsonl_path.parent.name)
 
     # Infer status from last event age without re-reading file.
     if max_ts:
@@ -251,6 +259,7 @@ def read_session_summary(jsonl_path: Path) -> dict:
     return {
         "session_id": session_id,
         "project_path": project_path,
+        "title": ai_title,
         "started_at": started_at,
         "last_event_at": last_event_at,
         "status": status,
@@ -278,7 +287,6 @@ def read_session_events(jsonl_path: Path) -> tuple[dict, list[dict]]:
         }
     """
     session_id = _session_id_from_path(jsonl_path)
-    project_path = _decode_project_path(jsonl_path.parent.name)
 
     events: list[dict] = []
     total_input = 0
@@ -286,9 +294,17 @@ def read_session_events(jsonl_path: Path) -> tuple[dict, list[dict]]:
     total_cost = 0.0
     min_ts: datetime | None = None
     max_ts: datetime | None = None
+    cwd: str | None = None
+    ai_title: str | None = None
 
     for idx, raw in enumerate(_iter_jsonl(jsonl_path)):
         msg_type = raw.get("type", "")
+        if cwd is None and raw.get("cwd"):
+            cwd = raw.get("cwd")
+        if msg_type == "ai-title":
+            if raw.get("aiTitle"):
+                ai_title = raw.get("aiTitle")
+            continue
         if msg_type == "summary":
             continue
 
@@ -376,7 +392,8 @@ def read_session_events(jsonl_path: Path) -> tuple[dict, list[dict]]:
 
     summary = {
         "session_id": session_id,
-        "project_path": project_path,
+        "project_path": cwd or _decode_project_path(jsonl_path.parent.name),
+        "title": ai_title,
         "started_at": min_ts.isoformat() if min_ts else "",
         "last_event_at": max_ts.isoformat() if max_ts else "",
         "status": status,

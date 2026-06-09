@@ -111,6 +111,7 @@ class ClaudeCodePlugin(AbstractPlugin):
                             "event_count": summary["event_count"],
                             "last_event_at": summary["last_event_at"],
                             "jsonl_path": str(path),
+                            "title": summary.get("title"),
                         },
                     )
                 except Exception:
@@ -168,6 +169,7 @@ class ClaudeCodePlugin(AbstractPlugin):
             metadata={
                 "event_count": summary["event_count"],
                 "jsonl_path": str(path),
+                "title": summary.get("title"),
             },
         )
 
