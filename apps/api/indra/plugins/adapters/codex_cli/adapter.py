@@ -7,6 +7,7 @@ import json
 import logging
 import sqlite3
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from pathlib import Path
 
 from ...base import (
@@ -24,6 +25,20 @@ _CODEX_DIR = Path.home() / ".codex"
 _SESSION_INDEX = _CODEX_DIR / "session_index.jsonl"
 _SESSIONS_DIR = _CODEX_DIR / "sessions"
 _STATE_DB = _CODEX_DIR / "state_5.sqlite"
+_ACTIVE_WINDOW_S = 300
+
+
+def _is_recent(ts: str | None, window_s: int = _ACTIVE_WINDOW_S) -> bool:
+    """True if an ISO-8601 timestamp is within the active window of now."""
+    if not ts:
+        return False
+    try:
+        dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return (datetime.now(UTC) - dt).total_seconds() < window_s
 
 
 def _read_session_index() -> list[dict]:
@@ -109,8 +124,14 @@ def _info_from_index_entry(entry: dict) -> SessionInfo:
     started_at = entry.get("createdAt") or entry.get("created_at") or "1970-01-01T00:00:00Z"
     updated_at = entry.get("updatedAt") or entry.get("updated_at") or started_at
 
-    # Determine active: no explicit end marker = treat as ended (conservative)
-    status = entry.get("status") or ("active" if not entry.get("endedAt") else "ended")
+    # Codex doesn't write an end marker, so "no endedAt" is NOT proof of life.
+    # Treat as active only if it was updated within the active window.
+    if entry.get("status"):
+        status = entry["status"]
+    elif entry.get("endedAt"):
+        status = "ended"
+    else:
+        status = "active" if _is_recent(updated_at) else "ended"
 
     project_path = (
         entry.get("workingDirectory")

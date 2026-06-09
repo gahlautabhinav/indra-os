@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import time
 import uuid
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -21,6 +22,16 @@ log = logging.getLogger(__name__)
 
 _PLUGIN_TYPE = "kiro_cli"
 _KIRO_SESSIONS_DIR = Path.home() / ".kiro" / "sessions" / "cli"
+# A session counts as active only if its file was touched within this window —
+# a lingering .lock file is NOT proof the session is still running.
+_ACTIVE_WINDOW_S = 300
+
+
+def _recent_mtime(path: Path, window_s: int = _ACTIVE_WINDOW_S) -> bool:
+    try:
+        return (time.time() - path.stat().st_mtime) < window_s
+    except OSError:
+        return False
 
 
 def _is_valid_uuid(value: str) -> bool:
@@ -91,9 +102,9 @@ def _session_from_json_meta(meta: dict, session_id: str, jsonl_path: Path) -> Se
     )
     updated_at = meta.get("updatedAt") or meta.get("updated_at") or started_at
 
-    # Status: active if lock file present, else ended
-    lock_path = jsonl_path.with_suffix(".lock")
-    status = "active" if lock_path.exists() else "ended"
+    # Active only if the session file was written to recently — a stale .lock
+    # left behind by a crashed/closed session must not read as "running".
+    status = "active" if _recent_mtime(jsonl_path) else "ended"
 
     project_path = (
         meta.get("workingDirectory")
