@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Network, RefreshCw, Plus, Trash2, X, Search } from "lucide-react";
 import type { KnowledgeNode, KnowledgeEdge } from "@indra/types";
+import { ConstellationGraph } from "@/components/knowledge/ConstellationGraph";
 import {
   useKnowledgeGraph,
   useSyncAgentNodes,
@@ -15,7 +16,9 @@ import {
 const ACCENT = "#d4843a";
 
 const ENTITY_COLORS: Record<string, string> = {
-  agent: "#3a80d4",
+  agent: "#8aa0b4",
+  plugin: "#4dc8c8",
+  project: "#e0b050",
   session: "#2ab870",
   task: "#e0a030",
   mcp_server: "#9a44d4",
@@ -222,10 +225,10 @@ function AddEdgeModal({ nodes, onClose }: { nodes: KnowledgeNode[]; onClose: () 
   );
 }
 
-type Tab = "nodes" | "edges";
+type Tab = "graph" | "nodes" | "edges";
 
 export default function NaksatraniPage() {
-  const [tab, setTab] = useState<Tab>("nodes");
+  const [tab, setTab] = useState<Tab>("graph");
   const [search, setSearch] = useState("");
   const [showAddNode, setShowAddNode] = useState(false);
   const [showAddEdge, setShowAddEdge] = useState(false);
@@ -261,7 +264,7 @@ export default function NaksatraniPage() {
             Entity Graph
           </h1>
           <p className="mt-1 text-sm text-ink-tertiary">
-            Agents, sessions, tasks and their relationships
+            The constellation of CLIs, projects and agent sessions — and how they connect across tools
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -308,7 +311,7 @@ export default function NaksatraniPage() {
       {/* Tabs + Search */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-1 p-1 bg-surface-2 rounded-[6px] border border-hairline">
-          {(["nodes", "edges"] as Tab[]).map((t) => (
+          {(["graph", "nodes", "edges"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -333,7 +336,19 @@ export default function NaksatraniPage() {
         )}
       </div>
 
-      {/* Table */}
+      {/* Constellation / Table */}
+      {tab === "graph" ? (
+        isLoading ? (
+          <div className="h-[560px] rounded-xl border border-hairline bg-surface-1 animate-pulse" />
+        ) : nodes.length === 0 ? (
+          <div className="flex h-[560px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-hairline bg-surface-1">
+            <Network className="h-7 w-7 text-ink-ghost opacity-40" />
+            <p className="text-sm text-ink-ghost">No constellation yet — click “Sync Agents” to build it</p>
+          </div>
+        ) : (
+          <ConstellationGraph nodes={nodes} edges={edges} />
+        )
+      ) : (
       <div
         className="rounded-[12px] border border-hairline bg-surface-1 overflow-hidden"
         style={{ borderTop: `2px solid ${ACCENT}` }}
@@ -472,6 +487,7 @@ export default function NaksatraniPage() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

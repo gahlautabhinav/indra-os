@@ -80,6 +80,17 @@ class AgentPoller:
                     except Exception:
                         log.exception("Poller trace synthesis failed")
 
+                # Rebuild the Naksatrani knowledge constellation (DB-only, cheap)
+                # so cross-CLI/project relationships stay current.
+                if self._tick % SYNTH_EVERY_N_TICKS == 3:
+                    try:
+                        from indra.domains.vasu.naksatrani.service import NaksatraniService
+
+                        async with AsyncSessionLocal() as db:
+                            await NaksatraniService.rebuild_graph(db)
+                    except Exception:
+                        log.exception("Poller knowledge-graph rebuild failed")
+
                 poll_results = await plugin_manager.poll_all()
 
                 current: dict[str, str] = {}

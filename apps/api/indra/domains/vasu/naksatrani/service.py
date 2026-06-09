@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from indra.core.exceptions import IndraException
@@ -19,6 +19,25 @@ from indra.models.knowledge import KnowledgeEdge, KnowledgeNode
 from .schemas import EdgeCreate, EdgeRead, GraphResponse, NodeCreate, NodeRead
 
 logger = structlog.get_logger()
+
+# Node types / relationships the auto-rebuild owns (manual "custom" nodes and
+# their edges are never touched).
+_AUTO_TYPES = ("plugin", "project", "agent", "mcp_server")
+_AUTO_RELS = ("runs_on", "worked_in", "spawned", "registered_with")
+
+_PLUGIN_LABEL = {
+    "claude_code": "Claude Code",
+    "gemini_cli": "Gemini CLI",
+    "codex_cli": "Codex CLI",
+    "kiro_cli": "Kiro",
+    "opencode": "OpenCode",
+    "antigravity": "Antigravity",
+}
+
+
+def _project_leaf(path: str) -> str:
+    leaf = path.replace("\\", "/").rstrip("/").split("/")[-1]
+    return leaf or path
 
 
 class NaksatraniService:
@@ -37,31 +56,135 @@ class NaksatraniService:
 
     @staticmethod
     async def sync_agents(db: AsyncSession) -> int:
-        from indra.models.agent import Agent
+        """Backwards-compatible entry point — rebuilds the whole constellation."""
+        return await NaksatraniService.rebuild_graph(db)
 
-        agents_result = await db.execute(select(Agent))
-        agents = list(agents_result.scalars().all())
-        count = 0
-        for agent in agents:
-            existing = await db.execute(
-                select(KnowledgeNode)
-                .where(KnowledgeNode.entity_type == "agent")
-                .where(KnowledgeNode.entity_id == str(agent.id))
-            )
-            if existing.scalar_one_or_none() is None:
-                node = KnowledgeNode(
-                    entity_type="agent",
-                    entity_id=str(agent.id),
-                    label=agent.name,
-                    domain=agent.domain,
-                    properties={"type": agent.type, "status": agent.status},
+    @staticmethod
+    async def rebuild_graph(db: AsyncSession) -> int:
+        """
+        Rebuild the multi-layer knowledge constellation from live data:
+          plugin (CLI) ← agent (session) → project (cwd), with spawn lineage
+          between agents and MCP servers attached to Claude Code.
+
+        Auto-owned nodes/edges are wiped and recreated; manually-added "custom"
+        nodes and their edges are preserved. Returns the node count.
+        """
+        from indra.models.agent import Agent
+        from indra.models.mcp_server import MCPServer
+        from indra.models.session import Session
+
+        # Wipe only what this rebuild owns.
+        await db.execute(delete(KnowledgeEdge).where(KnowledgeEdge.relationship.in_(_AUTO_RELS)))
+        await db.execute(delete(KnowledgeNode).where(KnowledgeNode.entity_type.in_(_AUTO_TYPES)))
+        await db.flush()
+
+        rows = (
+            await db.execute(
+                select(Agent, Session.project_path).outerjoin(
+                    Session, Agent.session_id == Session.id
                 )
-                db.add(node)
-                count += 1
-        if count:
-            await db.commit()
-        logger.info("naksatrani.sync_agents", synced=count)
-        return count
+            )
+        ).all()
+        mcp_servers = list((await db.execute(select(MCPServer))).scalars())
+
+        plugin_nodes: dict[str, KnowledgeNode] = {}
+        project_nodes: dict[str, KnowledgeNode] = {}
+        agent_nodes: dict[str, KnowledgeNode] = {}
+
+        def plugin_node(pt: str) -> KnowledgeNode:
+            if pt not in plugin_nodes:
+                n = KnowledgeNode(
+                    entity_type="plugin",
+                    entity_id=pt,
+                    label=_PLUGIN_LABEL.get(pt, pt),
+                    domain="vasu",
+                    properties={"kind": "cli"},
+                )
+                db.add(n)
+                plugin_nodes[pt] = n
+            return plugin_nodes[pt]
+
+        def project_node(path: str) -> KnowledgeNode:
+            if path not in project_nodes:
+                n = KnowledgeNode(
+                    entity_type="project",
+                    entity_id=path,
+                    label=_project_leaf(path),
+                    domain="vasu",
+                    properties={"path": path},
+                )
+                db.add(n)
+                project_nodes[path] = n
+            return project_nodes[path]
+
+        # Pass 1 — create nodes.
+        agent_meta: list[tuple[Agent, str | None]] = []
+        for agent, project_path in rows:
+            an = KnowledgeNode(
+                entity_type="agent",
+                entity_id=str(agent.id),
+                label=agent.name,
+                domain=agent.domain,
+                properties={"plugin": agent.type, "status": agent.status},
+            )
+            db.add(an)
+            agent_nodes[str(agent.id)] = an
+            plugin_node(agent.type)
+            if project_path:
+                project_node(project_path)
+            agent_meta.append((agent, project_path))
+
+        for srv in mcp_servers:
+            db.add(
+                KnowledgeNode(
+                    entity_type="mcp_server",
+                    entity_id=str(srv.id),
+                    label=srv.name,
+                    domain="vasu",
+                    properties={"status": srv.status, "transport": srv.transport},
+                )
+            )
+
+        await db.flush()  # assign node ids
+
+        # Pass 2 — edges.
+        for agent, project_path in agent_meta:
+            an = agent_nodes[str(agent.id)]
+            db.add(KnowledgeEdge(from_node_id=an.id, to_node_id=plugin_nodes[agent.type].id, relationship="runs_on"))
+            if project_path and project_path in project_nodes:
+                db.add(KnowledgeEdge(from_node_id=an.id, to_node_id=project_nodes[project_path].id, relationship="worked_in"))
+            if agent.parent_id and str(agent.parent_id) in agent_nodes:
+                db.add(
+                    KnowledgeEdge(
+                        from_node_id=agent_nodes[str(agent.parent_id)].id,
+                        to_node_id=an.id,
+                        relationship="spawned",
+                    )
+                )
+
+        # MCP servers attach to Claude Code (where they're registered).
+        claude = plugin_nodes.get("claude_code")
+        if claude is not None:
+            mcp_node_rows = list(
+                (
+                    await db.execute(
+                        select(KnowledgeNode).where(KnowledgeNode.entity_type == "mcp_server")
+                    )
+                ).scalars()
+            )
+            for mn in mcp_node_rows:
+                db.add(KnowledgeEdge(from_node_id=mn.id, to_node_id=claude.id, relationship="registered_with"))
+
+        await db.commit()
+        total = len(agent_nodes) + len(plugin_nodes) + len(project_nodes) + len(mcp_servers)
+        logger.info(
+            "naksatrani.rebuild_graph",
+            agents=len(agent_nodes),
+            projects=len(project_nodes),
+            plugins=len(plugin_nodes),
+            mcp=len(mcp_servers),
+        )
+        return total
 
     @staticmethod
     async def create_node(db: AsyncSession, req: NodeCreate) -> NodeRead:
