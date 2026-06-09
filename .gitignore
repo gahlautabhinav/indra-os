@@ -1,8 +1,10 @@
 # Planning docs — local only, not tracked in git
+# (ARCHITECTURE.md is a curated public doc and IS tracked; the original internal
+#  planning version is preserved locally as ARCHITECTURE.planning.md.bak)
 PRD.md
-ARCHITECTURE.md
 PLAN.md
 INDRA_DESIGN.md
+ARCHITECTURE.planning.md.bak
 design_files/
 bug-screenshots/
 
