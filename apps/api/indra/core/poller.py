@@ -18,6 +18,9 @@ POLL_INTERVAL = 5  # seconds — lightweight WS status diffing cadence
 # streams up to 200 JSONL files (some very large), so it runs less often than
 # the WS poll to keep IO load bounded. 6 * 5s = ~30s.
 SYNC_EVERY_N_TICKS = 6
+# Trace synthesis is heavier (reads session event timelines), so run it on a
+# slower cadence than the session sync. 12 * 5s = ~60s.
+SYNTH_EVERY_N_TICKS = 12
 
 
 class AgentPoller:
@@ -64,6 +67,18 @@ class AgentPoller:
                             await WorkforceService(db).sync_from_plugins()
                     except Exception:
                         log.exception("Poller session sync failed — UI may be stale")
+
+                # Synthesize Vivarta traces from session event timelines so the
+                # Trace Center reflects real CLI agent activity (which emits no
+                # OTel spans). Runs after sync, on a slower cadence; idempotent.
+                if self._tick % SYNTH_EVERY_N_TICKS == 2:
+                    try:
+                        from indra.domains.vasu.suryah.service import trace_service
+
+                        async with AsyncSessionLocal() as db:
+                            await trace_service.synthesize_from_sessions(db, limit=15)
+                    except Exception:
+                        log.exception("Poller trace synthesis failed")
 
                 poll_results = await plugin_manager.poll_all()
 

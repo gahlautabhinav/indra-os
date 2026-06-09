@@ -77,3 +77,14 @@ async def ingest_trace(
     db: AsyncSession = Depends(get_db),
 ) -> TraceIngestResponse:
     return await trace_service.ingest_trace(db, request)
+
+
+@router.post("/traces/synthesize", tags=["traces"])
+async def synthesize_traces(
+    limit: int = Query(25, ge=1, le=80),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Build Vivarta traces from CLI session event timelines (Claude, Antigravity,
+    etc.) so the Trace Center reflects real agent activity that doesn't emit OTel."""
+    n = await trace_service.synthesize_from_sessions(db, limit=limit)
+    return {"synthesized": n}

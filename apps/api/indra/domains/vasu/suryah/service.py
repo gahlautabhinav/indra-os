@@ -5,6 +5,7 @@ Reads from local DB (OTLP ingest) with optional AgTrace fallback.
 
 from __future__ import annotations
 
+import re
 import statistics
 import uuid
 from datetime import UTC, datetime
@@ -244,6 +245,162 @@ class TraceService:
             p50_duration_ms=p50,
             p99_duration_ms=p99,
         )
+
+    # ── Trace synthesis ───────────────────────────────────────────────────────
+
+    async def synthesize_from_sessions(
+        self,
+        db: AsyncSession,
+        *,
+        limit: int = 15,
+        max_spans: int = 120,
+    ) -> int:
+        """
+        Build a Vivarta trace + span waterfall from each session's event
+        timeline. CLI agents (Claude Code, Antigravity, …) don't emit OpenTelemetry
+        spans, so without this the Trace Center stays empty. Idempotent — sessions
+        that already have a trace (trace_id == external_id) are skipped, so steady-
+        state cost is just the newest untraced sessions per run.
+        """
+        from indra.models.session import Session
+        from indra.plugins import plugin_manager
+
+        existing = set((await db.execute(select(Trace.trace_id))).scalars())
+        rows = list(
+            (
+                await db.execute(
+                    select(Session).order_by(Session.started_at.desc()).limit(80)
+                )
+            ).scalars()
+        )
+        candidates = [
+            s for s in rows if s.external_id and s.external_id not in existing
+        ][:limit]
+
+        synthesized = 0
+        for s in candidates:
+            plugin = plugin_manager.get(s.plugin_type)
+            if plugin is None:
+                continue
+            try:
+                detail = await plugin.get_session(s.external_id)  # type: ignore[arg-type]
+            except Exception:
+                log.warning("trace synth read failed", session=s.external_id)
+                continue
+            if detail is None or not detail.events:
+                continue
+
+            events = detail.events[-max_spans:]
+            spans = _events_to_spans(s, events)
+            if len(spans) <= 1:  # nothing meaningful beyond the root
+                continue
+
+            req = TraceIngestRequest(
+                trace_id=s.external_id,  # type: ignore[arg-type]
+                name=_session_trace_name(s),
+                session_id=str(s.id),
+                status="ok",
+                spans=spans,
+            )
+            try:
+                await self.ingest_trace(db, req)
+                synthesized += 1
+            except Exception:
+                log.exception("trace synth ingest failed", session=s.external_id)
+        return synthesized
+
+
+_TOOL_RE = re.compile(r"\[tool_use:([^\]]+)\]")
+_EVENT_LABEL = {
+    "user_message": "user prompt",
+    "assistant_message": "assistant",
+    "tool_call": "tool",
+    "tool_result": "tool result",
+}
+
+
+def _parse_iso(ts: str | None) -> datetime | None:
+    if not ts:
+        return None
+    try:
+        return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _ms_between(a: str | None, b: str | None) -> int | None:
+    da, dbb = _parse_iso(a), _parse_iso(b)
+    if da and dbb:
+        return max(int((dbb - da).total_seconds() * 1000), 0)
+    return None
+
+
+def _span_name(ev: object) -> str:
+    etype = getattr(ev, "event_type", "")
+    content = getattr(ev, "content", None)
+    if etype == "tool_call" and content:
+        m = _TOOL_RE.search(content)
+        if m:
+            return f"🔧 {m.group(1)}"
+    return _EVENT_LABEL.get(etype, etype or "span")
+
+
+def _session_trace_name(session: object) -> str:
+    md = getattr(session, "metadata_", None) or {}
+    title = md.get("title") if isinstance(md, dict) else None
+    if title:
+        return str(title)[:200]
+    project = getattr(session, "project_path", None)
+    if project:
+        leaf = str(project).replace("\\", "/").rstrip("/").split("/")[-1]
+        if leaf:
+            return leaf
+    plugin = getattr(session, "plugin_type", "session")
+    ext = str(getattr(session, "external_id", None) or "")
+    return f"{plugin} · {ext[:8]}"
+
+
+def _events_to_spans(session: object, events: list) -> list[SpanIngest]:
+    """One root span over the whole session + a child span per event."""
+    times = [getattr(e, "timestamp", None) for e in events]
+    times = [t for t in times if t]
+    root_start = times[0] if times else None
+    root_end = times[-1] if times else None
+    root_id = "root"
+
+    spans: list[SpanIngest] = [
+        SpanIngest(
+            span_id=root_id,
+            parent_span_id=None,
+            name=_session_trace_name(session),
+            kind="session",
+            status="ok",
+            started_at=root_start,
+            finished_at=root_end,
+            duration_ms=_ms_between(root_start, root_end),
+        )
+    ]
+    for i, ev in enumerate(events):
+        ts = getattr(ev, "timestamp", None)
+        nxt = getattr(events[i + 1], "timestamp", None) if i + 1 < len(events) else root_end
+        spans.append(
+            SpanIngest(
+                span_id=f"e{i}",
+                parent_span_id=root_id,
+                name=_span_name(ev),
+                kind=getattr(ev, "event_type", None),
+                status="ok",
+                started_at=ts or root_start,
+                finished_at=nxt or ts,
+                duration_ms=_ms_between(ts, nxt),
+                attributes={
+                    "input_tokens": getattr(ev, "input_tokens", 0),
+                    "output_tokens": getattr(ev, "output_tokens", 0),
+                    "cost_usd": getattr(ev, "cost_usd", 0.0),
+                },
+            )
+        )
+    return spans
 
 
 def _make_span(trace_id: str, span_in: SpanIngest) -> Span:
