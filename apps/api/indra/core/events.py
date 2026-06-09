@@ -22,8 +22,32 @@ STREAM_AGENTS = "indra:stream:agents"
 STREAM_SESSIONS = "indra:stream:sessions"
 STREAM_TRACES = "indra:stream:traces"
 STREAM_ALERTS = "indra:stream:alerts"
+STREAM_EVENTS = "indra:stream:events"
 
 PUBSUB_EVENTS = "indra:events"
+
+
+def stream_for(event_type: str) -> str:
+    """Route an event_type (e.g. 'session.created') to its Redis stream."""
+    head = event_type.split(".", 1)[0]
+    return {
+        "session": STREAM_SESSIONS,
+        "agent": STREAM_AGENTS,
+        "trace": STREAM_TRACES,
+        "alert": STREAM_ALERTS,
+    }.get(head, STREAM_EVENTS)
+
+
+def stream_fields(event: "IndraEvent") -> dict[str, str]:
+    """Flatten an event into string fields for XADD (stream values must be scalar)."""
+    fields: dict[str, str] = {
+        "event_type": event.event_type,
+        "domain": event.domain,
+        "timestamp": event.timestamp,
+    }
+    for k, v in event.data.items():
+        fields[k] = v if isinstance(v, str) else json.dumps(v)
+    return fields
 
 
 def make_agent_status_changed(agent_id: str, status: str, domain: str = "rudra") -> IndraEvent:

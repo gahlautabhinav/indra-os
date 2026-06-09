@@ -4,7 +4,7 @@ import json
 import structlog
 from fastapi import WebSocket
 
-from indra.core.events import PUBSUB_EVENTS, IndraEvent
+from indra.core.events import PUBSUB_EVENTS, IndraEvent, stream_fields, stream_for
 from indra.redis import get_redis
 
 logger = structlog.get_logger()
@@ -54,7 +54,19 @@ class ConnectionManager:
 
     async def publish_event(self, event: IndraEvent) -> None:
         redis = await get_redis()
+        # Pub/sub for live WebSocket fan-out (ephemeral)...
         await redis.publish(PUBSUB_EVENTS, event.to_json())
+        # ...and append to a Redis stream so the Apah event bus has a durable,
+        # inspectable XREVRANGE log (capped to bound memory).
+        try:
+            await redis.xadd(
+                stream_for(event.event_type),
+                stream_fields(event),  # type: ignore[arg-type]
+                maxlen=2000,
+                approximate=True,
+            )
+        except Exception:
+            logger.warning("event stream xadd failed", event_type=event.event_type)
 
     async def _listen_pubsub(self) -> None:
         redis = await get_redis()
