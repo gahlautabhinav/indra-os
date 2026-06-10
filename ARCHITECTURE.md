@@ -99,7 +99,7 @@ list_sessions() · get_session() · stream_events() · health_check()
 | `codex_cli`    | `~/.codex/session_index.jsonl` + `sessions/` | `thread_name` |
 | `kiro_cli`     | `~/.kiro/sessions/cli/*.json(l)` | `title` |
 | `gemini_cli`   | `~/.gemini/history`, `tmp` | from JSON |
-| `opencode`     | `~/.opencode/sessions/` | session.json |
+| `opencode`     | `~/.local/share/opencode/opencode.db` (SQLite) | session `title` / `slug` |
 | `antigravity`  | `~/.gemini/antigravity/conversations/*.pb` + IDE `state.vscdb` | decoded trajectory title |
 
 Notable decoding work:
