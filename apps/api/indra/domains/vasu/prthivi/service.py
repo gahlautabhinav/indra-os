@@ -16,9 +16,34 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from indra.core.exceptions import IndraException
+from indra.models.project import Project
+from indra.models.session import Session
+from indra.models.task import Task
 from indra.models.workspace import Workspace
 
-from .schemas import FileEntry, FileListResponse, StorageAnalytics, WorkspaceRead
+from .schemas import (
+    FileEntry,
+    FileListResponse,
+    ProjectRead,
+    RunRead,
+    StorageAnalytics,
+    WorkspaceRead,
+)
+
+
+def _run_read(t: Task) -> RunRead:
+    return RunRead(
+        id=t.id,
+        project_id=t.input.get("project_id"),
+        name=t.name,
+        status=t.status,
+        trigger=t.input.get("trigger"),
+        stages=(t.output or {}).get("stages", []),
+        error=t.error,
+        started_at=t.started_at,
+        finished_at=t.finished_at,
+        created_at=t.created_at,
+    )
 
 
 class PrthiviService:
@@ -138,3 +163,124 @@ class PrthiviService:
             total_size_bytes=total_size,
             total_size_human=human,
         )
+
+    # ── Project registry (Tvasta auto-index) ────────────────────────────────
+
+    @staticmethod
+    def _norm_root(p: str) -> str:
+        return p.replace("\\", "/").rstrip("/")
+
+    @staticmethod
+    def _leaf(p: str) -> str:
+        leaf = p.rstrip("/").split("/")[-1]
+        return leaf or p
+
+    @staticmethod
+    async def discover_projects(db: AsyncSession) -> list[ProjectRead]:
+        """Seed/refresh the registry from CLI session roots + vault project roots.
+
+        New projects start disabled (opt-in). Refreshes graphify-out / build_vault
+        flags for existing rows. Never auto-enables anything.
+        """
+        from indra.domains.aditya.smriti.vault_scan import scan_vaults
+
+        roots: dict[str, str] = {}  # lower(canonical) → canonical
+        sessions = await db.execute(select(Session.project_path).distinct())
+        for (pp,) in sessions.all():
+            if pp:
+                canon = PrthiviService._norm_root(pp)
+                roots.setdefault(canon.lower(), canon)
+        for v in scan_vaults():
+            r = v.get("project_root")
+            if r:
+                canon = PrthiviService._norm_root(r)
+                roots.setdefault(canon.lower(), canon)
+
+        existing = {
+            p.root_path.lower(): p
+            for p in (await db.execute(select(Project))).scalars()
+        }
+        for low, canon in roots.items():
+            p = existing.get(low)
+            if p is None:
+                # SECURITY INVARIANT: root_path is created ONLY here, from trusted
+                # local discovery (CLI session cwds + the local Obsidian vault
+                # registry). The pipeline executes graphify against it. Never add a
+                # route/body that sets root_path without confining it to a workspace
+                # base (Path.resolve() prefix check) — else it becomes RCE.
+                p = Project(root_path=canon, name=PrthiviService._leaf(canon), enabled=False)
+                db.add(p)
+                existing[low] = p
+            gout = Path(canon) / "graphify-out"
+            p.graphify_out = str(gout) if gout.exists() else None
+            p.has_vault_builder = (gout / "build_vault.py").exists()
+        await db.commit()
+        return await PrthiviService.list_projects(db)
+
+    @staticmethod
+    async def list_projects(db: AsyncSession) -> list[ProjectRead]:
+        result = await db.execute(
+            select(Project).order_by(Project.enabled.desc(), Project.root_path)
+        )
+        return [ProjectRead.model_validate(p, from_attributes=True) for p in result.scalars()]
+
+    @staticmethod
+    async def set_project_enabled(
+        db: AsyncSession, project_id: uuid.UUID, enabled: bool
+    ) -> ProjectRead:
+        p = await db.get(Project, project_id)
+        if p is None:
+            raise IndraException(status_code=404, error_code="project_not_found", message="Project not found")
+        p.enabled = enabled
+        await db.commit()
+        await db.refresh(p)
+        return ProjectRead.model_validate(p, from_attributes=True)
+
+    @staticmethod
+    async def reindex_project(db: AsyncSession, project_id: uuid.UUID) -> RunRead:
+        """Queue an index run. The Tvasta worker executes it off the request path."""
+        p = await db.get(Project, project_id)
+        if p is None:
+            raise IndraException(status_code=404, error_code="project_not_found", message="Project not found")
+        if not p.enabled:
+            raise IndraException(
+                status_code=409,
+                error_code="project_disabled",
+                message="Enable the project before indexing it.",
+            )
+        # Don't double-queue: one active (queued|running) index run per project.
+        active = await db.execute(
+            select(Task)
+            .where(
+                Task.status.in_(("queued", "running")),
+                Task.input["kind"].astext == "index",
+                Task.input["project_id"].astext == str(project_id),
+            )
+            .limit(1)
+        )
+        if active.scalars().first() is not None:
+            raise IndraException(
+                status_code=409,
+                error_code="project_indexing",
+                message="An index run is already queued or running for this project.",
+            )
+        # Tvasta owns execution; Prthivi owns the registry.
+        from indra.domains.aditya.tvastah.pipeline import enqueue
+
+        task = await enqueue(db, p, trigger="manual")
+        return _run_read(task)
+
+    @staticmethod
+    async def list_runs(
+        db: AsyncSession, project_id: uuid.UUID | None = None, limit: int = 20
+    ) -> list[RunRead]:
+        stmt = (
+            select(Task)
+            .where(Task.input["kind"].astext == "index")
+            .order_by(Task.created_at.desc())
+            .limit(limit)
+        )
+        if project_id is not None:
+            stmt = stmt.where(Task.input["project_id"].astext == str(project_id))
+        rows = (await db.execute(stmt)).scalars()
+        return [_run_read(t) for t in rows]

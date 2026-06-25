@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger()
 
 _VALID_TRIGGERS = frozenset({"interval", "cron", "once"})
-_VALID_ACTIONS = frozenset({"notify", "spawn_agent"})
+_VALID_ACTIONS = frozenset({"notify", "spawn_agent", "reindex_enabled"})
 
 # Module-level scheduler reference — set by lifespan
 _scheduler: AsyncIOScheduler | None = None
@@ -64,6 +64,36 @@ async def _execute_action(schedule_id: str, action_type: str, action_config: dic
         elif action_type == "spawn_agent":
             logger.info("savita.spawn_agent", config=action_config)
             # Future: call agent spawn endpoint programmatically
+
+        elif action_type == "reindex_enabled":
+            # Safety-net: queue an index run for every enabled project (the worker
+            # serializes them). Skips projects that already have an active run.
+            from sqlalchemy import select
+
+            from indra.database import AsyncSessionLocal
+            from indra.domains.aditya.tvastah.pipeline import enqueue
+            from indra.models.project import Project
+            from indra.models.task import Task
+
+            async with AsyncSessionLocal() as db:
+                projects = list(
+                    (await db.execute(select(Project).where(Project.enabled.is_(True)))).scalars()
+                )
+                queued = 0
+                for p in projects:
+                    active = await db.execute(
+                        select(Task)
+                        .where(
+                            Task.status.in_(("queued", "running")),
+                            Task.input["kind"].astext == "index",
+                            Task.input["project_id"].astext == str(p.id),
+                        )
+                        .limit(1)
+                    )
+                    if active.scalars().first() is None:
+                        await enqueue(db, p, trigger="scheduled")
+                        queued += 1
+            logger.info("savita.reindex_enabled", enabled=len(projects), queued=queued)
 
     except Exception as exc:
         logger.error("savita.action_failed", error=str(exc), schedule_id=schedule_id)

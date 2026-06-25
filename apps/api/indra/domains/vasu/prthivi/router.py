@@ -12,10 +12,68 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from indra.database import get_db
 
-from .schemas import FileListResponse, StorageAnalytics, WorkspaceCreate, WorkspaceRead
+from .schemas import (
+    FileListResponse,
+    ProjectRead,
+    RunRead,
+    StorageAnalytics,
+    WorkspaceCreate,
+    WorkspaceRead,
+)
 from .service import PrthiviService
 
 router = APIRouter()
+
+
+# ── Project registry (Tvasta auto-index) ────────────────────────────────────
+
+
+@router.get("/projects", response_model=list[ProjectRead], tags=["projects"])
+async def list_projects(db: AsyncSession = Depends(get_db)) -> list[ProjectRead]:
+    return await PrthiviService.list_projects(db)
+
+
+@router.post("/projects/discover", response_model=list[ProjectRead], tags=["projects"])
+async def discover_projects(db: AsyncSession = Depends(get_db)) -> list[ProjectRead]:
+    return await PrthiviService.discover_projects(db)
+
+
+@router.post("/projects/{project_id}/enable", response_model=ProjectRead, tags=["projects"])
+async def enable_project(project_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> ProjectRead:
+    return await PrthiviService.set_project_enabled(db, project_id, True)
+
+
+@router.post("/projects/{project_id}/disable", response_model=ProjectRead, tags=["projects"])
+async def disable_project(project_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> ProjectRead:
+    return await PrthiviService.set_project_enabled(db, project_id, False)
+
+
+@router.post(
+    "/projects/{project_id}/reindex",
+    response_model=RunRead,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["projects"],
+)
+async def reindex_project(
+    project_id: uuid.UUID, db: AsyncSession = Depends(get_db)
+) -> RunRead:
+    return await PrthiviService.reindex_project(db, project_id)
+
+
+@router.get("/projects/runs", response_model=list[RunRead], tags=["projects"])
+async def list_all_runs(
+    limit: int = Query(20, ge=1, le=100), db: AsyncSession = Depends(get_db)
+) -> list[RunRead]:
+    return await PrthiviService.list_runs(db, limit=limit)
+
+
+@router.get("/projects/{project_id}/runs", response_model=list[RunRead], tags=["projects"])
+async def list_project_runs(
+    project_id: uuid.UUID,
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+) -> list[RunRead]:
+    return await PrthiviService.list_runs(db, project_id=project_id, limit=limit)
 
 
 @router.get("/storage/workspaces", response_model=list[WorkspaceRead], tags=["storage"])

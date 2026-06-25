@@ -3,6 +3,8 @@
 #  planning version is preserved locally as ARCHITECTURE.planning.md.bak)
 PRD.md
 PLAN*.md
+INDRA_BRIEF.md
+TVASTA_PIPELINE.md
 INDRA_DESIGN.md
 ARCHITECTURE.planning.md.bak
 design_files/

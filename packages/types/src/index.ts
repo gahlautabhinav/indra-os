@@ -750,6 +750,42 @@ export interface VaultCombinedGraph {
   expanded: number;
 }
 
+// ── Projects / Tvasta auto-index ─────────────────────────────────────────
+
+export interface ProjectInfo {
+  id: string;
+  root_path: string;
+  name: string;
+  enabled: boolean;
+  graphify_out: string | null;
+  has_vault_builder: boolean;
+  status: string; // idle | queued | running | ok | failed
+  index_version: number;
+  last_indexed_at: string | null;
+  stages: IndexStage[];
+  error: string | null;
+  created_at: string;
+}
+
+export interface IndexStage {
+  stage: string;
+  status: string;
+  [k: string]: unknown;
+}
+
+export interface IndexRun {
+  id: string;
+  project_id: string | null;
+  name: string;
+  status: string; // queued | running | succeeded | failed
+  trigger: string | null;
+  stages: IndexStage[];
+  error: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+}
+
 // ── RBAC / Aryamah ───────────────────────────────────────────────────────
 
 export type UserRole = "viewer" | "user" | "admin";

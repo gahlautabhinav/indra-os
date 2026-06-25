@@ -24,6 +24,8 @@ export const QK = {
   vaultNote: (id: string, name: string) => ["vaults", id, "note", name] as const,
   vaultGraph: (id: string) => ["vaults", id, "graph"] as const,
   vaultsCombinedGraph: ["vaults", "combined-graph"] as const,
+  projects: ["projects"] as const,
+  indexRuns: ["projects", "runs"] as const,
   tasks: (params?: object) => ["tasks", params] as const,
   taskStats: ["tasks", "stats"] as const,
   notifications: (params?: object) => ["notifications", params] as const,
@@ -1164,6 +1166,52 @@ export function useVaultsCombinedGraph() {
     queryFn: () => indraApi.getVaultsCombinedGraph(),
     refetchInterval: 60_000,
     staleTime: 59_000,
+  });
+}
+
+// ── Projects / Tvasta auto-index ──
+
+export function useProjects() {
+  return useQuery({
+    queryKey: QK.projects,
+    queryFn: indraApi.getProjects,
+    refetchInterval: 10_000,
+  });
+}
+
+export function useIndexRuns() {
+  return useQuery({
+    queryKey: QK.indexRuns,
+    queryFn: () => indraApi.getIndexRuns(20),
+    refetchInterval: 4_000, // watch runs progress through the worker
+  });
+}
+
+export function useDiscoverProjects() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: indraApi.discoverProjects,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: QK.projects }),
+  });
+}
+
+export function useSetProjectEnabled() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
+      indraApi.setProjectEnabled(id, enabled),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: QK.projects }),
+  });
+}
+
+export function useReindexProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => indraApi.reindexProject(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QK.projects });
+      void qc.invalidateQueries({ queryKey: QK.indexRuns });
+    },
   });
 }
 

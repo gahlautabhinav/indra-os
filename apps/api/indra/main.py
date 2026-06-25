@@ -63,6 +63,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from indra.core.poller import poller
     poller.start()
 
+    # Start the Tvasta index worker (claims queued project index runs).
+    from indra.domains.aditya.tvastah.worker import index_worker
+    index_worker.start()
+
     # Start APScheduler for Savita (ADITYA scheduler deva).
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -80,6 +84,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
 
     scheduler.shutdown(wait=False)
+    index_worker.stop()
     poller.stop()
     await plugin_manager.shutdown_all()
     await close_redis()

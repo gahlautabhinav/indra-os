@@ -5,6 +5,7 @@ from indra.models.mcp_server import MCPServer
 from indra.models.memory import MemoryChunk
 from indra.models.notification import Notification
 from indra.models.policy import Policy
+from indra.models.project import Project
 from indra.models.schedule import Schedule
 from indra.models.session import Session
 from indra.models.task import Task
@@ -23,6 +24,7 @@ __all__ = [
     "MemoryChunk",
     "Notification",
     "Policy",
+    "Project",
     "Schedule",
     "Session",
     "Skill",

@@ -61,6 +61,8 @@ import type {
   TraceWithSpans,
   TrendEntry,
   TriggerResponse,
+  IndexRun,
+  ProjectInfo,
   UserRole,
   UserRoleRead,
   VaultCombinedGraph,
@@ -719,6 +721,18 @@ export const indraApi = {
     apiClient
       .get<VaultCombinedGraph>("/vaults/graph", { params: cap ? { cap } : undefined })
       .then((r) => r.data),
+
+  // ── Projects / Tvasta auto-index ──
+  getProjects: () => apiClient.get<ProjectInfo[]>("/projects").then((r) => r.data),
+  discoverProjects: () => apiClient.post<ProjectInfo[]>("/projects/discover").then((r) => r.data),
+  setProjectEnabled: (id: string, enabled: boolean) =>
+    apiClient
+      .post<ProjectInfo>(`/projects/${id}/${enabled ? "enable" : "disable"}`)
+      .then((r) => r.data),
+  reindexProject: (id: string) =>
+    apiClient.post<IndexRun>(`/projects/${id}/reindex`).then((r) => r.data),
+  getIndexRuns: (limit = 20) =>
+    apiClient.get<IndexRun[]>("/projects/runs", { params: { limit } }).then((r) => r.data),
 
   // ── Vishnuh / Pervasion (ADITYA) ──
   getPervasionOverview: () =>
