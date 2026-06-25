@@ -146,6 +146,7 @@ def _register_routers(app: FastAPI) -> None:
     from indra.domains.aditya.pushanah.router import router as pushanah_router
     from indra.domains.aditya.savita.router import router as savita_router
     from indra.domains.aditya.smriti.router import router as memory_router
+    from indra.domains.aditya.smriti.vaults import router as vaults_router
     from indra.domains.aditya.tvastah.router import router as tvastah_router
     from indra.domains.aditya.varunah.router import router as varunah_router
     from indra.domains.aditya.vishnuh.router import router as vishnuh_router
@@ -181,6 +182,7 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(mcp_router, prefix="/api/v1", tags=["mcp"])
     app.include_router(trace_router, prefix="/api/v1", tags=["traces"])
     app.include_router(memory_router, prefix="/api/v1", tags=["memory"])
+    app.include_router(vaults_router, prefix="/api/v1", tags=["vaults"])
     app.include_router(pranah_router, prefix="/api/v1", tags=["tasks"])
     # RUDRA runtime devas
     app.include_router(devadattah_router, prefix="/api/v1", tags=["notifications"])

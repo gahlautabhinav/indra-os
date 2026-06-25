@@ -41,7 +41,7 @@ INDRA (Command)              — the sovereign dashboard / command layer
 │   └── Jīvātmā       Agent identity
 │
 ├── ADITYA × 12   Governance
-│   ├── Smṛti         Memory / RAG
+│   ├── Smṛti         Memory / RAG · Second Brain (Obsidian vaults)
 │   ├── Aryamā        RBAC
 │   ├── Varuṇaḥ       Policy engine
 │   ├── Savitā        Scheduler (APScheduler)
@@ -111,6 +111,9 @@ Notable decoding work:
 - **Active/ended status** uses a uniform recency heuristic (last activity < 5 min) —
   Kiro/Codex lock-files and missing end-markers are not trusted.
 
+Obsidian vaults are **not** CLI sessions, so they do not use this adapter model — they
+are read by a separate read-only scanner under Smṛti (see §5, Second Brain).
+
 ---
 
 ## 4. Data Flow
@@ -160,9 +163,20 @@ duplicate rows under concurrent syncs.
 - **Event Bus (Āpaḥ)** — `publish_event` does both Redis pub/sub (ephemeral WS) and
   XADD to `indra:stream:*` (durable, inspectable via XREVRANGE).
 - **Knowledge Graph (Nakṣatrāṇi)** — a multi-layer constellation: plugin (CLI) ←
-  agent (session) → project (cwd), plus MCP servers and spawn lineage. Sessions that
-  share a project cluster together (cross-CLI links). Rendered as a live, draggable,
-  force-directed star map (`ConstellationGraph`).
+  agent (session) → project (cwd), plus MCP servers, spawn lineage, and **vault** nodes
+  (`documents` edge → project). Sessions that share a project cluster together
+  (cross-CLI links). Rendered as a live, draggable, force-directed star map
+  (`ConstellationGraph`).
+- **Second Brain (Smṛti)** — read-only Obsidian vaults. A scanner
+  (`smriti/vault_scan.py`) reads the registry (`%APPDATA%/obsidian/obsidian.json`) and
+  each vault on disk; every vault here is a `graphify`-generated code knowledge graph,
+  so its project root is recovered from the path (strip `…/graphify-out/<vault>`) and
+  matched to `Session.project_path`. Served live (catalog, note list, note body,
+  per-vault graph from the precomputed `graph.json`) — plus one **combined** force graph
+  of every vault (`/vaults/graph`, per-vault colour clusters, globally capped). Vault
+  summaries also fold into the master constellation via `rebuild_graph`. Note bodies are
+  read with a path-traversal/ADS guard and a bounded read; the store is never written.
+  The UI (`/aditya/smriti`) is a project hub + vault browser + the existing RAG memory.
 - **Discovery (Pūṣā)** — surfaces the local **Claude Code environment**: skills,
   subagents, MCP servers (global + per-project), installed plugins, and hooks, scanned
   from `~/.claude/`.

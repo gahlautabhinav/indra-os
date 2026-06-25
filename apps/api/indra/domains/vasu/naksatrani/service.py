@@ -22,8 +22,8 @@ logger = structlog.get_logger()
 
 # Node types / relationships the auto-rebuild owns (manual "custom" nodes and
 # their edges are never touched).
-_AUTO_TYPES = ("plugin", "project", "agent", "mcp_server")
-_AUTO_RELS = ("runs_on", "worked_in", "spawned", "registered_with")
+_AUTO_TYPES = ("plugin", "project", "agent", "mcp_server", "vault")
+_AUTO_RELS = ("runs_on", "worked_in", "spawned", "registered_with", "documents")
 
 _PLUGIN_LABEL = {
     "claude_code": "Claude Code",
@@ -38,6 +38,13 @@ _PLUGIN_LABEL = {
 def _project_leaf(path: str) -> str:
     leaf = path.replace("\\", "/").rstrip("/").split("/")[-1]
     return leaf or path
+
+
+def _norm_path(path: str | None) -> str:
+    """Case-insensitive, slash-normalized path for cross-OS matching."""
+    if not path:
+        return ""
+    return path.replace("\\", "/").rstrip("/").lower()
 
 
 class NaksatraniService:
@@ -175,14 +182,59 @@ class NaksatraniService:
             for mn in mcp_node_rows:
                 db.add(KnowledgeEdge(from_node_id=mn.id, to_node_id=claude.id, relationship="registered_with"))
 
+        # Vaults — the Obsidian "second brain" corpus. One node per vault,
+        # linked to its project (matched by normalized path) via a "documents"
+        # edge. A vault whose project has no CLI sessions stays edgeless until a
+        # session for that project appears (project nodes stay session-derived).
+        from indra.domains.aditya.smriti.vault_scan import scan_vaults
+
+        proj_by_norm = {_norm_path(p): n for p, n in project_nodes.items()}
+        vault_links: list[tuple[KnowledgeNode, KnowledgeNode]] = []
+        vault_count = 0
+        for v in scan_vaults():
+            if not v.get("exists"):
+                continue
+            vn = KnowledgeNode(
+                entity_type="vault",
+                entity_id=v["id"],
+                label=v["name"],
+                domain="vasu",
+                properties={
+                    "path": v.get("path"),
+                    "project_root": v.get("project_root"),
+                    "note_count": v.get("note_count", 0),
+                    "is_graphify": v.get("is_graphify", False),
+                    "graph": v.get("graph"),
+                    "open": v.get("open", False),
+                },
+            )
+            db.add(vn)
+            vault_count += 1
+            root = v.get("project_root")
+            pn = proj_by_norm.get(_norm_path(root)) if root else None
+            if pn is not None:
+                vault_links.append((vn, pn))
+
+        if vault_count:
+            await db.flush()  # assign vault node ids
+            for vn, pn in vault_links:
+                db.add(KnowledgeEdge(from_node_id=vn.id, to_node_id=pn.id, relationship="documents"))
+
         await db.commit()
-        total = len(agent_nodes) + len(plugin_nodes) + len(project_nodes) + len(mcp_servers)
+        total = (
+            len(agent_nodes)
+            + len(plugin_nodes)
+            + len(project_nodes)
+            + len(mcp_servers)
+            + vault_count
+        )
         logger.info(
             "naksatrani.rebuild_graph",
             agents=len(agent_nodes),
             projects=len(project_nodes),
             plugins=len(plugin_nodes),
             mcp=len(mcp_servers),
+            vaults=vault_count,
         )
         return total
 

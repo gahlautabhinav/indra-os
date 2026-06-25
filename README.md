@@ -22,6 +22,10 @@ place, **without ever modifying their data** (every adapter is strictly read-onl
 - **Knowledge constellation** — a live, draggable, Obsidian-style force graph linking
   CLIs ↔ sessions ↔ projects; sessions that share a project cluster together, so
   cross-tool work (e.g. a Codex session used from Claude Code) is visible.
+- **Second Brain** — your Obsidian vaults, read-only, tied to the projects and agent
+  sessions that produced them: a project hub, a vault/note browser with an inline reader
+  (and "Open in Obsidian"), and one combined Obsidian-style force graph of every vault's
+  notes rendered as per-vault clusters — plus a rotating orbital view.
 - **Event bus** — live Redis-stream view of system events.
 - **Discovery** — surfaces everything wired into your local Claude Code setup: skills,
   subagents, MCP servers, plugins, and hooks.
@@ -118,4 +122,5 @@ indra/
 
 ## Supported Agent Systems
 
-Claude Code · Codex CLI · Kiro · Gemini CLI · OpenCode · Antigravity · MCP servers
+Claude Code · Codex CLI · Kiro · Gemini CLI · OpenCode · Antigravity · MCP servers ·
+Obsidian vaults (Second Brain)

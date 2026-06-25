@@ -646,6 +646,110 @@ export interface GraphResponse {
   edge_count: number;
 }
 
+// ── Vaults / Second Brain (Smriti) ───────────────────────────────────────
+
+export interface VaultGraphCounts {
+  node_count: number;
+  edge_count: number;
+  community_count: number;
+}
+
+export interface VaultSummary {
+  id: string;
+  name: string;
+  path: string;
+  exists: boolean;
+  open: boolean;
+  is_graphify: boolean;
+  project_root: string | null;
+  matched_project?: boolean;
+  note_count: number;
+  graph: VaultGraphCounts | null;
+  last_modified: string | null;
+}
+
+export interface VaultListResponse {
+  vaults: VaultSummary[];
+  counts: { total: number; graphify: number; matched: number; missing: number };
+}
+
+export interface VaultProject {
+  project_root: string;
+  leaf: string;
+  vaults: VaultSummary[];
+  session_count: number;
+  active_count: number;
+}
+
+export interface VaultProjectsResponse {
+  projects: VaultProject[];
+  counts: { projects: number; with_vaults: number };
+}
+
+export interface VaultNoteMeta {
+  name: string;
+  stem: string;
+  size: number;
+  modified_at: string | null;
+}
+
+export interface VaultNotesResponse {
+  vault_id: string;
+  total: number;
+  limit: number;
+  offset: number;
+  notes: VaultNoteMeta[];
+}
+
+export interface VaultNote extends VaultNoteMeta {
+  vault_id: string;
+  truncated: boolean;
+  body: string;
+}
+
+/** Node/edge shapes returned by the per-vault graph endpoint. Structurally a
+ *  subset of KnowledgeNode/KnowledgeEdge so they render in ConstellationGraph. */
+export interface VaultGraphNode {
+  id: string;
+  entity_type: string;
+  entity_id: string | null;
+  label: string;
+  domain: string;
+  properties: Record<string, unknown>;
+}
+
+export interface VaultGraphEdge {
+  id: string;
+  from_node_id: string;
+  to_node_id: string;
+  relationship: string;
+  weight: number;
+  properties: Record<string, unknown>;
+}
+
+export interface VaultGraph {
+  vault_id: string;
+  is_graphify: boolean;
+  nodes: VaultGraphNode[];
+  edges: VaultGraphEdge[];
+  node_count: number;
+  edge_count: number;
+  community_count: number;
+  truncated?: boolean;
+  total_node_count?: number;
+  total_edge_count?: number;
+}
+
+/** Combined force graph of every vault at once (Obsidian-style hero). */
+export interface VaultCombinedGraph {
+  nodes: VaultGraphNode[];
+  edges: VaultGraphEdge[];
+  node_count: number;
+  edge_count: number;
+  vault_count: number;
+  expanded: number;
+}
+
 // ── RBAC / Aryamah ───────────────────────────────────────────────────────
 
 export type UserRole = "viewer" | "user" | "admin";

@@ -101,7 +101,7 @@ export const DOMAINS: Domain[] = [
     href: "/aditya/smriti",
     tagline: "Governance · 12 Devas",
     devas: [
-      { slug: "smriti", href: "/aditya/smriti", name: "Smriti", sanskrit: "स्मृति", role: "Memory / RAG" },
+      { slug: "smriti", href: "/aditya/smriti", name: "Smriti", sanskrit: "स्मृति", role: "Memory · Second Brain" },
       { slug: "aryama", href: "/aditya/aryama", name: "Aryama", sanskrit: "अर्यमा", role: "RBAC" },
       { slug: "varunah", href: "/aditya/varunah", name: "Varunah", sanskrit: "वरुणः", role: "Policies" },
       { slug: "savita", href: "/aditya/savita", name: "Savita", sanskrit: "सविता", role: "Scheduler" },

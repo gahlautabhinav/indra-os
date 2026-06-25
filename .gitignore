@@ -2,11 +2,13 @@
 # (ARCHITECTURE.md is a curated public doc and IS tracked; the original internal
 #  planning version is preserved locally as ARCHITECTURE.planning.md.bak)
 PRD.md
-PLAN.md
+PLAN*.md
 INDRA_DESIGN.md
 ARCHITECTURE.planning.md.bak
 design_files/
+graphify-out/
 bug-screenshots/
+*-resume.txt
 
 # Node
 node_modules/
@@ -46,6 +48,14 @@ Thumbs.db
 
 # Docker
 *.log
+
+# Redis
+*.rdb
+dump.rdb
+
+# Local tooling / skill config (not part of INDRA)
+.agents/
+.claude/
 
 # Secrets
 *.pem

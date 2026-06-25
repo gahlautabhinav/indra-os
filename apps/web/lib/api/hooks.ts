@@ -18,6 +18,12 @@ export const QK = {
   traceStats: ["traces", "stats"] as const,
   memoryChunks: (params?: object) => ["memory", "chunks", params] as const,
   memoryStats: ["memory", "stats"] as const,
+  vaults: ["vaults", "list"] as const,
+  vaultProjects: ["vaults", "projects"] as const,
+  vaultNotes: (id: string, params?: object) => ["vaults", id, "notes", params] as const,
+  vaultNote: (id: string, name: string) => ["vaults", id, "note", name] as const,
+  vaultGraph: (id: string) => ["vaults", id, "graph"] as const,
+  vaultsCombinedGraph: ["vaults", "combined-graph"] as const,
   tasks: (params?: object) => ["tasks", params] as const,
   taskStats: ["tasks", "stats"] as const,
   notifications: (params?: object) => ["notifications", params] as const,
@@ -1102,6 +1108,62 @@ export function useClaudeEnv() {
     queryFn: indraApi.getClaudeEnv,
     refetchInterval: 30_000,
     staleTime: 29_000,
+  });
+}
+
+// ── Vaults / Second Brain (Smriti) ──
+
+export function useVaults() {
+  return useQuery({
+    queryKey: QK.vaults,
+    queryFn: indraApi.getVaults,
+    refetchInterval: 30_000,
+    staleTime: 29_000,
+  });
+}
+
+export function useVaultProjects() {
+  return useQuery({
+    queryKey: QK.vaultProjects,
+    queryFn: indraApi.getVaultProjects,
+    refetchInterval: 30_000,
+    staleTime: 29_000,
+  });
+}
+
+export function useVaultNotes(id: string | null, params?: { limit?: number; offset?: number }) {
+  return useQuery({
+    queryKey: QK.vaultNotes(id ?? "", params),
+    queryFn: () => indraApi.getVaultNotes(id as string, params),
+    enabled: !!id,
+    staleTime: 60_000,
+  });
+}
+
+export function useVaultNote(id: string | null, name: string | null) {
+  return useQuery({
+    queryKey: QK.vaultNote(id ?? "", name ?? ""),
+    queryFn: () => indraApi.getVaultNote(id as string, name as string),
+    enabled: !!id && !!name,
+    staleTime: 60_000,
+  });
+}
+
+export function useVaultGraph(id: string | null) {
+  return useQuery({
+    queryKey: QK.vaultGraph(id ?? ""),
+    queryFn: () => indraApi.getVaultGraph(id as string),
+    enabled: !!id,
+    staleTime: 60_000,
+  });
+}
+
+export function useVaultsCombinedGraph() {
+  return useQuery({
+    queryKey: QK.vaultsCombinedGraph,
+    queryFn: () => indraApi.getVaultsCombinedGraph(),
+    refetchInterval: 60_000,
+    staleTime: 59_000,
   });
 }
 

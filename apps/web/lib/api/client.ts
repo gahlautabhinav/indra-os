@@ -63,6 +63,12 @@ import type {
   TriggerResponse,
   UserRole,
   UserRoleRead,
+  VaultCombinedGraph,
+  VaultGraph,
+  VaultListResponse,
+  VaultNote,
+  VaultNotesResponse,
+  VaultProjectsResponse,
   WorkflowDef,
   Workspace,
   WorkspaceFileList,
@@ -692,6 +698,27 @@ export const indraApi = {
     apiClient.get<DiscoveryRegistry>("/discovery/registry").then((r) => r.data),
   getClaudeEnv: () =>
     apiClient.get<ClaudeEnv>("/discovery/claude").then((r) => r.data),
+
+  // ── Vaults / Second Brain (Smriti) ──
+  getVaults: () => apiClient.get<VaultListResponse>("/vaults").then((r) => r.data),
+  getVaultProjects: () =>
+    apiClient.get<VaultProjectsResponse>("/vaults/projects").then((r) => r.data),
+  getVaultNotes: (id: string, params?: { limit?: number; offset?: number }) =>
+    apiClient
+      .get<VaultNotesResponse>(`/vaults/${encodeURIComponent(id)}/notes`, { params })
+      .then((r) => r.data),
+  getVaultNote: (id: string, name: string) =>
+    apiClient
+      .get<VaultNote>(
+        `/vaults/${encodeURIComponent(id)}/notes/${encodeURIComponent(name)}`
+      )
+      .then((r) => r.data),
+  getVaultGraph: (id: string) =>
+    apiClient.get<VaultGraph>(`/vaults/${encodeURIComponent(id)}/graph`).then((r) => r.data),
+  getVaultsCombinedGraph: (cap?: number) =>
+    apiClient
+      .get<VaultCombinedGraph>("/vaults/graph", { params: cap ? { cap } : undefined })
+      .then((r) => r.data),
 
   // ── Vishnuh / Pervasion (ADITYA) ──
   getPervasionOverview: () =>

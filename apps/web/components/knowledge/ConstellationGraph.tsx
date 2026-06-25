@@ -1,9 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import type { KnowledgeNode, KnowledgeEdge } from "@indra/types";
 
 // ── Visual vocab ──────────────────────────────────────────────────────────────
+
+// Structural minimum the graph needs. KnowledgeNode/KnowledgeEdge (master graph)
+// and VaultGraphNode/VaultGraphEdge (per-vault graph) are both assignable.
+export interface GraphNodeLike {
+  id: string;
+  entity_type: string;
+  entity_id?: string | null;
+  label: string;
+  properties?: Record<string, unknown> | null;
+}
+export interface GraphEdgeLike {
+  id: string;
+  from_node_id: string;
+  to_node_id: string;
+  relationship: string;
+}
 
 const PLUGIN_COLOR: Record<string, string> = {
   claude_code: "#d4843a",
@@ -14,10 +29,26 @@ const PLUGIN_COLOR: Record<string, string> = {
   antigravity: "#a855f7",
 };
 
-function nodeColor(n: KnowledgeNode): string {
+// Palette for graphify "community" clusters in a per-vault graph.
+const COMMUNITY_PALETTE = [
+  "#6dd5e8", "#e0b050", "#7c6af7", "#2ab870", "#e0708a", "#d4843a",
+  "#4dc8c8", "#a855f7", "#9acd4d", "#e04040", "#5a9ccf", "#c98ae0",
+  "#48b3a0", "#d4b33a", "#8a7cff", "#6db86d", "#e08a5a", "#5ab0e0",
+];
+
+function nodeColor(n: GraphNodeLike): string {
+  // Explicit per-node colour (e.g. combined vault clusters) wins.
+  const explicit = n.properties?.color;
+  if (typeof explicit === "string") return explicit;
   if (n.entity_type === "plugin") return PLUGIN_COLOR[n.entity_id ?? ""] ?? "#4dc8c8";
   if (n.entity_type === "project") return "#e0b050";
   if (n.entity_type === "mcp_server") return "#9a44d4";
+  if (n.entity_type === "vault") return "#6db86d";
+  if (n.entity_type === "symbol") {
+    const c = n.properties?.community;
+    if (typeof c === "number") return COMMUNITY_PALETTE[c % COMMUNITY_PALETTE.length]!;
+    return "#6dd5e8";
+  }
   const plugin = (n.properties?.plugin as string) ?? "";
   return PLUGIN_COLOR[plugin] ?? "#8aa0b4";
 }
@@ -27,6 +58,7 @@ const REL_COLOR: Record<string, string> = {
   runs_on: "#4dc8c8",
   spawned: "#c44450",
   registered_with: "#9a44d4",
+  documents: "#6db86d",
 };
 
 interface Body {
@@ -54,8 +86,8 @@ export function ConstellationGraph({
   edges,
   height = 560,
 }: {
-  nodes: KnowledgeNode[];
-  edges: KnowledgeEdge[];
+  nodes: GraphNodeLike[];
+  edges: GraphEdgeLike[];
   height?: number;
 }) {
   const degree = useMemo(() => {
@@ -217,11 +249,13 @@ export function ConstellationGraph({
     return s;
   }, [hover, edges]);
 
-  function radius(n: KnowledgeNode): number {
+  function radius(n: GraphNodeLike): number {
     const deg = degree.get(n.id) ?? 0;
     if (n.entity_type === "plugin") return 13 + Math.min(deg, 40) * 0.2;
     if (n.entity_type === "project") return 7 + Math.min(deg, 20) * 0.45;
+    if (n.entity_type === "vault") return 8 + Math.min(deg, 20) * 0.35;
     if (n.entity_type === "mcp_server") return 7;
+    if (n.entity_type === "symbol") return 3.5 + Math.min(deg, 30) * 0.12;
     return 4;
   }
 
@@ -345,7 +379,8 @@ export function ConstellationGraph({
             const c = nodeColor(n);
             const r = radius(n);
             const dim = neighbours ? !neighbours.has(n.id) : false;
-            const isHub = n.entity_type === "plugin" || n.entity_type === "project";
+            const isHub =
+              n.entity_type === "plugin" || n.entity_type === "project" || n.entity_type === "vault";
             return (
               <g
                 key={n.id}
@@ -381,6 +416,8 @@ export function ConstellationGraph({
           ["Project", "#e0b050"],
           ["Agent", "#8aa0b4"],
           ["MCP", "#9a44d4"],
+          ["Vault", "#6db86d"],
+          ["Symbol", "#6dd5e8"],
         ].map(([label, color]) => (
           <span key={label} className="flex items-center gap-1 text-ink-tertiary">
             <span className="inline-block h-2 w-2 rounded-full" style={{ background: color }} />
