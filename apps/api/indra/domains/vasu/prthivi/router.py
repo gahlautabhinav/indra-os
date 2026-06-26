@@ -14,6 +14,8 @@ from indra.database import get_db
 
 from .schemas import (
     FileListResponse,
+    KgQueryRequest,
+    KgQueryResponse,
     ProjectRead,
     RunRead,
     StorageAnalytics,
@@ -60,6 +62,13 @@ async def reindex_project(
     db: AsyncSession = Depends(get_db),
 ) -> RunRead:
     return await PrthiviService.reindex_project(db, project_id, mode=mode)
+
+
+@router.post("/projects/{project_id}/kg-query", response_model=KgQueryResponse, tags=["projects"])
+async def kg_query(
+    project_id: uuid.UUID, body: KgQueryRequest, db: AsyncSession = Depends(get_db)
+) -> KgQueryResponse:
+    return await PrthiviService.kg_query(db, project_id, body.query, body.mode)
 
 
 @router.get("/projects/runs", response_model=list[RunRead], tags=["projects"])

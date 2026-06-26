@@ -36,6 +36,9 @@ build/
 .mypy_cache/
 .ruff_cache/
 
+# LightRAG per-project stores (regenerable from graph.json)
+.lightrag/
+
 # Alembic
 # (keep migrations tracked)
 

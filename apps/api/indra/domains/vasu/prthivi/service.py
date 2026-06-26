@@ -24,6 +24,7 @@ from indra.models.workspace import Workspace
 from .schemas import (
     FileEntry,
     FileListResponse,
+    KgQueryResponse,
     ProjectRead,
     RunRead,
     StorageAnalytics,
@@ -286,6 +287,26 @@ class PrthiviService:
 
         task = await enqueue(db, p, trigger="manual", mode=("semantic" if mode == "semantic" else "fast"))
         return _run_read(task)
+
+    @staticmethod
+    async def kg_query(
+        db: AsyncSession, project_id: uuid.UUID, query: str, mode: str = "mix"
+    ) -> KgQueryResponse:
+        """Graph-aware (LightRAG) retrieval over a project's knowledge graph."""
+        from indra.domains.aditya.smriti import lightrag_store
+
+        p = await db.get(Project, project_id)
+        if p is None:
+            raise IndraException(status_code=404, error_code="project_not_found", message="Project not found")
+        if not lightrag_store.available():
+            raise IndraException(
+                status_code=503,
+                error_code="lightrag_unavailable",
+                message="LightRAG / local embeddings not available.",
+            )
+        gout = p.graphify_out or str(Path(p.root_path) / "graphify-out")
+        context = await lightrag_store.query(gout, query, mode=mode)
+        return KgQueryResponse(project_id=project_id, mode=mode, context=context)
 
     @staticmethod
     async def list_runs(

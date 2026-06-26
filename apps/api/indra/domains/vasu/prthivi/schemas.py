@@ -81,3 +81,14 @@ class RunRead(BaseModel):
     started_at: datetime | None
     finished_at: datetime | None
     created_at: datetime
+
+
+class KgQueryRequest(BaseModel):
+    query: str
+    mode: str = "mix"  # naive | local | global | hybrid | mix
+
+
+class KgQueryResponse(BaseModel):
+    project_id: uuid.UUID
+    mode: str
+    context: str

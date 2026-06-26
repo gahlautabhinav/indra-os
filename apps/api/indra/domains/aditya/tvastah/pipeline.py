@@ -311,6 +311,24 @@ async def execute(db: AsyncSession, task: Task) -> dict[str, Any]:
         except Exception as exc:  # noqa: BLE001 — best-effort
             rec("ingest", "warn", error=str(exc)[:200])
 
+    # lightrag — rebuild the per-project KG+vector hybrid store from graph.json so
+    # graph-aware retrieval stays in sync. Non-fatal; skipped if unavailable/too large.
+    if not failed:
+        try:
+            from indra.domains.aditya.smriti import lightrag_store
+
+            if lightrag_store.available():
+                ls = await lightrag_store.seed(str(root_p / "graphify-out"))
+                rec(
+                    "lightrag",
+                    "ok" if ls.get("entities") else "skipped",
+                    **{k: v for k, v in ls.items() if k in ("entities", "relationships", "chunks", "skipped")},
+                )
+            else:
+                rec("lightrag", "skipped", reason="unavailable")
+        except Exception as exc:  # noqa: BLE001 — best-effort
+            rec("lightrag", "warn", error=str(exc)[:200])
+
     # knowledge graph — refresh so vault/project nodes reflect the update. Non-fatal.
     if not failed:
         try:
