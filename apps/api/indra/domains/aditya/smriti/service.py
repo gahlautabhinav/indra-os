@@ -11,12 +11,16 @@ RAG pipeline:
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from collections import defaultdict
+from typing import TYPE_CHECKING, Any
 
 import httpx
 import structlog
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+
+if TYPE_CHECKING:
+    from indra.domains.aditya.smriti.ingest import MemorySource
 
 from indra.config import settings
 from indra.models.memory import MemoryChunk
@@ -97,6 +101,58 @@ class SmritiService:
             created_at=chunk.created_at,
         )
 
+    # ── Project-scoped ingestion (Smriti second brain) ────────────────────────
+
+    async def upsert_sources(
+        self, db: AsyncSession, sources: list[MemorySource]
+    ) -> dict[str, int]:
+        """Incrementally upsert ingested sources, keyed by (project_id, source_type,
+        source_id). Unchanged content (same hash) is skipped; sources that vanished
+        from a (project, type) are pruned. Free path: no embedding (trigram search)."""
+        stats = {"inserted": 0, "updated": 0, "skipped": 0, "pruned": 0}
+        if not sources:
+            return stats
+
+        groups: dict[tuple[uuid.UUID, str], list[MemorySource]] = defaultdict(list)
+        for s in sources:
+            groups[(s.project_id, s.source_type)].append(s)
+
+        for (pid, stype), items in groups.items():
+            rows = (
+                await db.execute(
+                    select(MemoryChunk).where(
+                        MemoryChunk.project_id == pid, MemoryChunk.source_type == stype
+                    )
+                )
+            ).scalars().all()
+            existing = {c.source_id: c for c in rows}
+            seen: set[str] = set()
+            for s in items:
+                seen.add(s.source_id)
+                cur = existing.get(s.source_id)
+                if cur is None:
+                    db.add(MemoryChunk(
+                        project_id=pid, source_type=stype, source_id=s.source_id,
+                        content=s.content, content_hash=s.content_hash,
+                        metadata_=s.metadata, embedding=None,
+                    ))
+                    stats["inserted"] += 1
+                elif cur.content_hash != s.content_hash:
+                    cur.content = s.content
+                    cur.content_hash = s.content_hash
+                    cur.metadata_ = s.metadata
+                    cur.embedding = None
+                    stats["updated"] += 1
+                else:
+                    stats["skipped"] += 1
+            for sid, c in existing.items():
+                if sid not in seen:
+                    await db.delete(c)
+                    stats["pruned"] += 1
+
+        await db.commit()
+        return stats
+
     # ── Search ────────────────────────────────────────────────────────────────
 
     async def search(
@@ -140,6 +196,10 @@ class SmritiService:
 
         if req.agent_id is not None:
             stmt = stmt.where(MemoryChunk.agent_id == req.agent_id)
+        if req.project_id is not None:
+            stmt = stmt.where(MemoryChunk.project_id == req.project_id)
+        if req.source_types:
+            stmt = stmt.where(MemoryChunk.source_type.in_(req.source_types))
 
         rows = await db.execute(stmt)
         results = [
@@ -148,6 +208,8 @@ class SmritiService:
                 content=chunk.content,
                 similarity=round(float(similarity), 4),
                 agent_id=chunk.agent_id,
+                project_id=chunk.project_id,
+                source_type=chunk.source_type,
                 metadata=chunk.metadata_,
                 created_at=chunk.created_at,
             )
@@ -182,6 +244,10 @@ class SmritiService:
 
         if req.agent_id is not None:
             stmt = stmt.where(MemoryChunk.agent_id == req.agent_id)
+        if req.project_id is not None:
+            stmt = stmt.where(MemoryChunk.project_id == req.project_id)
+        if req.source_types:
+            stmt = stmt.where(MemoryChunk.source_type.in_(req.source_types))
 
         rows = await db.execute(stmt)
         results = [
@@ -190,6 +256,8 @@ class SmritiService:
                 content=chunk.content,
                 similarity=round(float(similarity), 4),
                 agent_id=chunk.agent_id,
+                project_id=chunk.project_id,
+                source_type=chunk.source_type,
                 metadata=chunk.metadata_,
                 created_at=chunk.created_at,
             )

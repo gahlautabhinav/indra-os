@@ -297,6 +297,20 @@ async def execute(db: AsyncSession, task: Task) -> dict[str, Any]:
         else:
             rec("vault", "skipped", reason="no graph.json (run /graphify once)")
 
+    # ingest — push the project's graph knowledge (symbols + named communities) into
+    # Smriti, project-scoped and incremental, so the second brain stays fresh on every
+    # index. Non-fatal.
+    if not failed:
+        try:
+            from indra.domains.aditya.smriti.ingest import build_project_sources
+            from indra.domains.aditya.smriti.service import smriti_service
+
+            srcs = build_project_sources(project.id, str(root_p / "graphify-out"))
+            stats = await smriti_service.upsert_sources(db, srcs)
+            rec("ingest", "ok", **stats)
+        except Exception as exc:  # noqa: BLE001 — best-effort
+            rec("ingest", "warn", error=str(exc)[:200])
+
     # knowledge graph — refresh so vault/project nodes reflect the update. Non-fatal.
     if not failed:
         try:

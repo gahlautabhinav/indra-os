@@ -31,6 +31,8 @@ class MemorySearchRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=2_000)
     limit: int = Field(10, ge=1, le=50)
     agent_id: uuid.UUID | None = None
+    project_id: uuid.UUID | None = None
+    source_types: list[str] | None = None
     similarity_threshold: float = Field(0.5, ge=0.0, le=1.0)
 
 
@@ -39,6 +41,8 @@ class MemorySearchResult(BaseModel):
     content: str
     similarity: float
     agent_id: uuid.UUID | None
+    project_id: uuid.UUID | None = None
+    source_type: str | None = None
     metadata: dict
     created_at: datetime
 
