@@ -173,6 +173,63 @@ async def seed(graphify_out: str) -> dict[str, Any]:
     }
 
 
+def graph(graphify_out: str, max_nodes: int = 400) -> dict[str, Any] | None:
+    """Read the seeded LightRAG knowledge graph (.lightrag graphml) into the frontend
+    ConstellationGraph shape. None if the store hasn't been built yet.
+
+    This is the *cleaned* graph (noise filtered, same-named entities merged) — what
+    LightRAG actually retrieves over, not the raw graph.json.
+    """
+    gml = os.path.join(_working_dir(graphify_out), "graph_chunk_entity_relation.graphml")
+    if not os.path.exists(gml):
+        return None
+    try:
+        import networkx as nx
+
+        g = nx.read_graphml(gml)
+    except (OSError, ValueError, ImportError):
+        return None
+
+    total = g.number_of_nodes()
+    truncated = total > max_nodes
+    keep: set[Any] = set(g.nodes())
+    if truncated:
+        # Renderability cap: keep the most-connected nodes (the structural backbone).
+        keep = {n for n, _ in sorted(g.degree(), key=lambda kv: kv[1], reverse=True)[:max_nodes]}
+
+    nodes = [
+        {
+            "id": str(n),
+            "entity_type": str(g.nodes[n].get("entity_type") or "symbol"),
+            "entity_id": str(n),
+            "label": str(n),
+            "domain": "smriti",
+            "properties": {"file_path": g.nodes[n].get("file_path", "")},
+        }
+        for n in keep
+    ]
+    edges = [
+        {
+            "id": f"e{j}",
+            "from_node_id": str(s),
+            "to_node_id": str(t),
+            "relationship": str(d.get("keywords") or d.get("description") or "related"),
+            "weight": float(d.get("weight") or 1.0),
+            "properties": {},
+        }
+        for j, (s, t, d) in enumerate(g.edges(data=True))
+        if s in keep and t in keep
+    ]
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "node_count": len(nodes),
+        "edge_count": len(edges),
+        "total_nodes": total,
+        "truncated": truncated,
+    }
+
+
 async def query(graphify_out: str, q: str, mode: str = "mix", top_k: int = 12) -> str:
     """KG-aware retrieval. Returns the retrieved context (no LLM generation)."""
     if not os.path.isdir(_working_dir(graphify_out)):

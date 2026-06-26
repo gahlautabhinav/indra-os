@@ -11,6 +11,7 @@ import contextlib
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -307,6 +308,25 @@ class PrthiviService:
         gout = p.graphify_out or str(Path(p.root_path) / "graphify-out")
         context = await lightrag_store.query(gout, query, mode=mode)
         return KgQueryResponse(project_id=project_id, mode=mode, context=context)
+
+    @staticmethod
+    async def kg_graph(db: AsyncSession, project_id: uuid.UUID) -> dict[str, Any]:
+        """The project's LightRAG knowledge graph in ConstellationGraph shape.
+
+        available=False when the project hasn't been indexed (no .lightrag store yet).
+        """
+        from indra.domains.aditya.smriti import lightrag_store
+
+        p = await db.get(Project, project_id)
+        if p is None:
+            raise IndraException(
+                status_code=404, error_code="project_not_found", message="Project not found"
+            )
+        gout = p.graphify_out or str(Path(p.root_path) / "graphify-out")
+        g = lightrag_store.graph(gout)
+        if g is None:
+            return {"available": False, "nodes": [], "edges": [], "node_count": 0, "edge_count": 0}
+        return {"available": True, **g}
 
     @staticmethod
     async def list_runs(

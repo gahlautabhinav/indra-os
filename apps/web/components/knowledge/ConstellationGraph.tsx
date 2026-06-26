@@ -44,6 +44,10 @@ function nodeColor(n: GraphNodeLike): string {
   if (n.entity_type === "project") return "#e0b050";
   if (n.entity_type === "mcp_server") return "#9a44d4";
   if (n.entity_type === "vault") return "#6db86d";
+  // LightRAG KG entity types (mirrors the Ask KG entity chips).
+  if (n.entity_type === "code") return "#3a80d4";
+  if (n.entity_type === "document") return "#2ab870";
+  if (n.entity_type === "rationale") return "#b07ce0";
   if (n.entity_type === "symbol") {
     const c = n.properties?.community;
     if (typeof c === "number") return COMMUNITY_PALETTE[c % COMMUNITY_PALETTE.length]!;

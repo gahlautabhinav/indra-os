@@ -6,6 +6,7 @@ VASU domain: Infrastructure layer.
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -69,6 +70,13 @@ async def kg_query(
     project_id: uuid.UUID, body: KgQueryRequest, db: AsyncSession = Depends(get_db)
 ) -> KgQueryResponse:
     return await PrthiviService.kg_query(db, project_id, body.query, body.mode)
+
+
+@router.get("/projects/{project_id}/kg-graph", tags=["projects"])
+async def kg_graph(
+    project_id: uuid.UUID, db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
+    return await PrthiviService.kg_graph(db, project_id)
 
 
 @router.get("/projects/runs", response_model=list[RunRead], tags=["projects"])

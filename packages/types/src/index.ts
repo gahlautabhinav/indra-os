@@ -794,6 +794,17 @@ export interface KgQueryResponse {
   context: string;
 }
 
+/** A project's seeded LightRAG knowledge graph, in ConstellationGraph shape. */
+export interface KgGraph {
+  available: boolean;
+  nodes: VaultGraphNode[];
+  edges: VaultGraphEdge[];
+  node_count: number;
+  edge_count: number;
+  total_nodes?: number;
+  truncated?: boolean;
+}
+
 // ── RBAC / Aryamah ───────────────────────────────────────────────────────
 
 export type UserRole = "viewer" | "user" | "admin";

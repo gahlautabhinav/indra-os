@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   FolderGit2,
   Loader2,
+  Network,
   PlayCircle,
   Plus,
   Play,
@@ -21,12 +22,14 @@ import {
   useDiscoverProjects,
   useExecuteWorkflowDef,
   useIndexRuns,
+  useKgGraph,
   useKgQuery,
   useProjects,
   useReindexProject,
   useSetProjectEnabled,
   useWorkflowDefs,
 } from "@/lib/api/hooks";
+import { ConstellationGraph } from "@/components/knowledge/ConstellationGraph";
 import type {
   IndexRun,
   IndexStage,
@@ -406,6 +409,34 @@ function KgResult({ context }: { context: string }) {
   );
 }
 
+function KgGraphView({ projectId }: { projectId: string }) {
+  const { data: graph, isLoading } = useKgGraph(projectId || null);
+
+  if (isLoading) return <p className="p-6 text-center text-xs text-ink-ghost">Loading graph…</p>;
+  if (!graph?.available)
+    return (
+      <div className="rounded-lg border border-hairline bg-surface-1 p-6 text-center text-xs text-ink-ghost">
+        No LightRAG store yet — reindex this project to build its knowledge graph.
+      </div>
+    );
+  if (graph.nodes.length === 0)
+    return (
+      <div className="rounded-lg border border-hairline bg-surface-1 p-6 text-center text-xs text-ink-ghost">
+        Graph is empty.
+      </div>
+    );
+
+  return (
+    <div className="relative rounded-lg border border-hairline bg-surface-1">
+      <ConstellationGraph nodes={graph.nodes} edges={graph.edges} height={520} />
+      <div className="pointer-events-none absolute left-3 top-3 rounded-md border border-hairline bg-surface-2/80 px-2.5 py-1 font-mono text-[10px] text-ink-tertiary backdrop-blur-sm">
+        {graph.node_count} nodes · {graph.edge_count} links
+        {graph.truncated ? ` · top ${graph.node_count} of ${graph.total_nodes}` : ""}
+      </div>
+    </div>
+  );
+}
+
 function KgQueryTab() {
   const { data: projects = [] } = useProjects();
   const kg = useKgQuery();
@@ -413,6 +444,7 @@ function KgQueryTab() {
   const [projectId, setProjectId] = useState("");
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<string>("mix");
+  const [view, setView] = useState<"answer" | "graph">("answer");
 
   const selected = projectId || indexed[0]?.id || "";
 
@@ -424,8 +456,8 @@ function KgQueryTab() {
   return (
     <div className="space-y-4">
       <p className="text-[12px] text-ink-tertiary">
-        Graph-aware retrieval over a project&apos;s knowledge graph (LightRAG, seeded from graphify —
-        entities + relations + vectors, fully local). Returns the retrieved context, no generation.
+        A project&apos;s knowledge graph (LightRAG, seeded from graphify — fully local). <b>Answer</b>{" "}
+        retrieves KG-aware context for a question; <b>Graph</b> draws the live knowledge graph.
       </p>
 
       {indexed.length === 0 ? (
@@ -447,47 +479,72 @@ function KgQueryTab() {
                 </option>
               ))}
             </select>
-            <select
-              value={mode}
-              onChange={(e) => setMode(e.target.value)}
-              className="rounded border border-hairline bg-surface-1 px-2 py-1.5 text-[12px] text-ink-secondary"
-              title="LightRAG retrieval mode"
-            >
-              {KG_MODES.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
+            {view === "answer" && (
+              <select
+                value={mode}
+                onChange={(e) => setMode(e.target.value)}
+                className="rounded border border-hairline bg-surface-1 px-2 py-1.5 text-[12px] text-ink-secondary"
+                title="LightRAG retrieval mode"
+              >
+                {KG_MODES.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            )}
+            <div className="ml-auto flex items-center gap-1 rounded border border-hairline p-0.5">
+              {(["answer", "graph"] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className="flex items-center gap-1 rounded px-2 py-1 text-[11px] capitalize transition-colors"
+                  style={
+                    view === v
+                      ? { background: ADITYA, color: "#fff" }
+                      : { color: "var(--indra-ink-ghost)" }
+                  }
+                >
+                  {v === "graph" ? <Network className="h-3 w-3" /> : <BrainCircuit className="h-3 w-3" />}
+                  {v}
+                </button>
               ))}
-            </select>
+            </div>
           </div>
 
-          <div className="flex gap-2">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && ask()}
-              placeholder="Ask the knowledge graph… e.g. how does auth work?"
-              className="flex-1 rounded border border-hairline bg-surface-1 px-3 py-2 text-[13px] text-ink-secondary placeholder:text-ink-ghost"
-            />
-            <button
-              onClick={ask}
-              disabled={!query.trim() || kg.isPending}
-              className="flex items-center gap-1.5 rounded px-3 py-2 text-[12px] text-white disabled:opacity-40"
-              style={{ background: ADITYA }}
-            >
-              {kg.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BrainCircuit className="h-3.5 w-3.5" />}
-              Ask
-            </button>
-          </div>
+          {view === "graph" ? (
+            <KgGraphView projectId={selected} />
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && ask()}
+                  placeholder="Ask the knowledge graph… e.g. how does auth work?"
+                  className="flex-1 rounded border border-hairline bg-surface-1 px-3 py-2 text-[13px] text-ink-secondary placeholder:text-ink-ghost"
+                />
+                <button
+                  onClick={ask}
+                  disabled={!query.trim() || kg.isPending}
+                  className="flex items-center gap-1.5 rounded px-3 py-2 text-[12px] text-white disabled:opacity-40"
+                  style={{ background: ADITYA }}
+                >
+                  {kg.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BrainCircuit className="h-3.5 w-3.5" />}
+                  Ask
+                </button>
+              </div>
 
-          {kg.isError && (
-            <p className="text-[11px] text-rose-400/80">
-              {(kg.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
-                "Query failed — is LightRAG available and the project indexed?"}
-            </p>
+              {kg.isError && (
+                <p className="text-[11px] text-rose-400/80">
+                  {(kg.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
+                    "Query failed — is LightRAG available and the project indexed?"}
+                </p>
+              )}
+
+              {kg.data && <KgResult context={kg.data.context} />}
+            </>
           )}
-
-          {kg.data && <KgResult context={kg.data.context} />}
         </>
       )}
     </div>
