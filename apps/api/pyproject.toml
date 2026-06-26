@@ -46,6 +46,14 @@ dev = [
     "mypy>=1.13.0",
     "ruff>=0.8.4",
 ]
+# Native LightRAG web UI launcher (indra.lightrag_ui). Optional + heavy: the
+# [api] extra pulls the bundled web UI + server deps. bcrypt is pinned <4.1
+# because [api] otherwise installs bcrypt 5 which breaks passlib (INDRA login).
+lightrag-ui = [
+    "lightrag-hku[api]>=1.5.0",
+    "openai>=1.40",
+    "bcrypt<4.1",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]
