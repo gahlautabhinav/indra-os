@@ -729,8 +729,10 @@ export const indraApi = {
     apiClient
       .post<ProjectInfo>(`/projects/${id}/${enabled ? "enable" : "disable"}`)
       .then((r) => r.data),
-  reindexProject: (id: string) =>
-    apiClient.post<IndexRun>(`/projects/${id}/reindex`).then((r) => r.data),
+  reindexProject: (id: string, mode: "fast" | "semantic" = "fast") =>
+    apiClient
+      .post<IndexRun>(`/projects/${id}/reindex`, null, { params: { mode } })
+      .then((r) => r.data),
   getIndexRuns: (limit = 20) =>
     apiClient.get<IndexRun[]>("/projects/runs", { params: { limit } }).then((r) => r.data),
 

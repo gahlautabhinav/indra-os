@@ -21,6 +21,10 @@ SYNC_EVERY_N_TICKS = 6
 # Trace synthesis is heavier (reads session event timelines), so run it on a
 # slower cadence than the session sync. 12 * 5s = ~60s.
 SYNTH_EVERY_N_TICKS = 12
+# Fingerprint enabled projects and auto-enqueue index runs for changed source.
+# Cheap (git HEAD / bounded mtime), but runs a subprocess per enabled project,
+# so keep it on the slow cadence. 12 * 5s = ~60s.
+DETECT_EVERY_N_TICKS = 12
 
 
 class AgentPoller:
@@ -90,6 +94,17 @@ class AgentPoller:
                             await NaksatraniService.rebuild_graph(db)
                     except Exception:
                         log.exception("Poller knowledge-graph rebuild failed")
+
+                # Auto-detect: fingerprint enabled projects, enqueue index runs
+                # for any whose source changed (the Tvasta worker executes them).
+                if self._tick % DETECT_EVERY_N_TICKS == 4:
+                    try:
+                        from indra.domains.aditya.tvastah.pipeline import detect_and_enqueue
+
+                        async with AsyncSessionLocal() as db:
+                            await detect_and_enqueue(db)
+                    except Exception:
+                        log.exception("Poller project detect failed")
 
                 poll_results = await plugin_manager.poll_all()
 

@@ -231,14 +231,31 @@ class PrthiviService:
         p = await db.get(Project, project_id)
         if p is None:
             raise IndraException(status_code=404, error_code="project_not_found", message="Project not found")
+        if enabled:
+            # Auto-index MAINTAINS an already-graphified project — it never does the
+            # first full build (that's the one-time /graphify skill run). Refuse to
+            # enable a project with no graphify-out so we don't grind graphify over a
+            # huge/unsuitable tree (a home dir, a repo with node_modules, etc.).
+            gout = Path(p.root_path) / "graphify-out"
+            if not gout.exists():
+                raise IndraException(
+                    status_code=409,
+                    error_code="needs_graphify",
+                    message="Run /graphify on this project once before enabling auto-index.",
+                )
+            p.graphify_out = str(gout)
+            p.has_vault_builder = (gout / "build_vault.py").exists()
         p.enabled = enabled
         await db.commit()
         await db.refresh(p)
         return ProjectRead.model_validate(p, from_attributes=True)
 
     @staticmethod
-    async def reindex_project(db: AsyncSession, project_id: uuid.UUID) -> RunRead:
-        """Queue an index run. The Tvasta worker executes it off the request path."""
+    async def reindex_project(
+        db: AsyncSession, project_id: uuid.UUID, mode: str = "fast"
+    ) -> RunRead:
+        """Queue an index run. The Tvasta worker executes it off the request path.
+        mode: "fast" (deterministic) | "semantic" (AI agy build)."""
         p = await db.get(Project, project_id)
         if p is None:
             raise IndraException(status_code=404, error_code="project_not_found", message="Project not found")
@@ -267,7 +284,7 @@ class PrthiviService:
         # Tvasta owns execution; Prthivi owns the registry.
         from indra.domains.aditya.tvastah.pipeline import enqueue
 
-        task = await enqueue(db, p, trigger="manual")
+        task = await enqueue(db, p, trigger="manual", mode=("semantic" if mode == "semantic" else "fast"))
         return _run_read(task)
 
     @staticmethod

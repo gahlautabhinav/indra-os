@@ -55,9 +55,11 @@ async def disable_project(project_id: uuid.UUID, db: AsyncSession = Depends(get_
     tags=["projects"],
 )
 async def reindex_project(
-    project_id: uuid.UUID, db: AsyncSession = Depends(get_db)
+    project_id: uuid.UUID,
+    mode: str = Query("fast", pattern="^(fast|semantic)$"),
+    db: AsyncSession = Depends(get_db),
 ) -> RunRead:
-    return await PrthiviService.reindex_project(db, project_id)
+    return await PrthiviService.reindex_project(db, project_id, mode=mode)
 
 
 @router.get("/projects/runs", response_model=list[RunRead], tags=["projects"])

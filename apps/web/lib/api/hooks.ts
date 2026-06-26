@@ -1207,7 +1207,8 @@ export function useSetProjectEnabled() {
 export function useReindexProject() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => indraApi.reindexProject(id),
+    mutationFn: ({ id, mode = "fast" }: { id: string; mode?: "fast" | "semantic" }) =>
+      indraApi.reindexProject(id, mode),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: QK.projects });
       void qc.invalidateQueries({ queryKey: QK.indexRuns });

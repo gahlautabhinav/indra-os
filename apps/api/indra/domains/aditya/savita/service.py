@@ -68,6 +68,7 @@ async def _execute_action(schedule_id: str, action_type: str, action_config: dic
         elif action_type == "reindex_enabled":
             # Safety-net: queue an index run for every enabled project (the worker
             # serializes them). Skips projects that already have an active run.
+            # action_config {"mode": "fast"|"semantic"} → deterministic or AI build.
             from sqlalchemy import select
 
             from indra.database import AsyncSessionLocal
@@ -75,6 +76,7 @@ async def _execute_action(schedule_id: str, action_type: str, action_config: dic
             from indra.models.project import Project
             from indra.models.task import Task
 
+            mode = "semantic" if action_config.get("mode") == "semantic" else "fast"
             async with AsyncSessionLocal() as db:
                 projects = list(
                     (await db.execute(select(Project).where(Project.enabled.is_(True)))).scalars()
@@ -91,9 +93,9 @@ async def _execute_action(schedule_id: str, action_type: str, action_config: dic
                         .limit(1)
                     )
                     if active.scalars().first() is None:
-                        await enqueue(db, p, trigger="scheduled")
+                        await enqueue(db, p, trigger="scheduled", mode=mode)
                         queued += 1
-            logger.info("savita.reindex_enabled", enabled=len(projects), queued=queued)
+            logger.info("savita.reindex_enabled", enabled=len(projects), queued=queued, mode=mode)
 
     except Exception as exc:
         logger.error("savita.action_failed", error=str(exc), schedule_id=schedule_id)

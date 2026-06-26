@@ -9,6 +9,7 @@ import {
   Plus,
   Play,
   RefreshCw,
+  Sparkles,
   Trash2,
   Workflow,
   XCircle,
@@ -105,14 +106,13 @@ function ProjectRow({ p }: { p: ProjectInfo }) {
         <div className="flex items-center gap-2">
           <span className="truncate text-[13px] text-ink-secondary">{leaf}</span>
           <StatusBadge status={p.status} />
-          {p.has_vault_builder ? (
-            <span className="text-[9px] text-emerald-400/80">vault</span>
+          {p.graphify_out ? (
+            <span className="text-[9px] text-emerald-400/80" title="Graph + Obsidian vault rebuilt each run">
+              vault
+            </span>
           ) : (
-            <span
-              className="text-[9px] text-ink-ghost"
-              title="No build_vault.py — needs a one-time graphify bootstrap"
-            >
-              needs bootstrap
+            <span className="text-[9px] text-ink-ghost" title="Not graphified yet — run /graphify once, then enable">
+              no graph
             </span>
           )}
         </div>
@@ -124,12 +124,21 @@ function ProjectRow({ p }: { p: ProjectInfo }) {
       )}
 
       <button
-        onClick={() => reindex.mutate(p.id)}
+        onClick={() => reindex.mutate({ id: p.id, mode: "fast" })}
         disabled={!p.enabled || busy || reindex.isPending}
         className="flex items-center gap-1 rounded border border-hairline px-2 py-1 text-[11px] text-ink-tertiary enabled:hover:text-ink-secondary disabled:opacity-40"
-        title={p.enabled ? "Queue an index run" : "Enable first"}
+        title={p.enabled ? "Fast deterministic reindex (graph + vault)" : "Enable first"}
       >
         <RefreshCw className={`h-3 w-3 ${busy ? "animate-spin" : ""}`} /> Reindex
+      </button>
+      <button
+        onClick={() => reindex.mutate({ id: p.id, mode: "semantic" })}
+        disabled={!p.enabled || busy || reindex.isPending}
+        className="flex items-center gap-1 rounded border px-2 py-1 text-[11px] disabled:opacity-40"
+        style={{ borderColor: "#9a44d433", color: "#b07ce0" }}
+        title={p.enabled ? "AI build: a headless Claude session names the communities, then rebuilds the vault with real names" : "Enable first"}
+      >
+        <Sparkles className="h-3 w-3" /> AI
       </button>
     </div>
   );
