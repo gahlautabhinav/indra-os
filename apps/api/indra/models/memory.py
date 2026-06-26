@@ -36,8 +36,13 @@ class MemoryChunk(Base):
     source_id: Mapped[str | None] = mapped_column(String(512), nullable=True)
     content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    # OpenAI embeddings (1536) — optional, metered.
     embedding: Mapped[list[float] | None] = mapped_column(
         Vector(1536), nullable=True
+    )
+    # Local embeddings (model2vec, 256) — free, default for project ingestion.
+    embedding_local: Mapped[list[float] | None] = mapped_column(
+        Vector(256), nullable=True
     )
     metadata_: Mapped[dict] = mapped_column(
         "metadata", JSONB, nullable=False, default=dict, server_default="{}"

@@ -32,6 +32,7 @@ dependencies = [
     "pgvector>=0.3.0",
     "slowapi>=0.1.9",
     "apscheduler>=3.10.4",
+    "model2vec>=0.8.0",
 ]
 
 [project.optional-dependencies]

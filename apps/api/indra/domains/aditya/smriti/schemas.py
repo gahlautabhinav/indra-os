@@ -61,6 +61,8 @@ class MemoryChunkRead(BaseModel):
     content: str
     has_embedding: bool
     agent_id: uuid.UUID | None
+    project_id: uuid.UUID | None = None
+    source_type: str | None = None
     metadata: dict
     created_at: datetime
 

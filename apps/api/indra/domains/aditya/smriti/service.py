@@ -16,13 +16,14 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 import structlog
-from sqlalchemy import func, select, text
+from sqlalchemy import func, literal_column, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 if TYPE_CHECKING:
     from indra.domains.aditya.smriti.ingest import MemorySource
 
 from indra.config import settings
+from indra.domains.aditya.smriti import local_embed
 from indra.models.memory import MemoryChunk
 
 from .schemas import (
@@ -117,6 +118,7 @@ class SmritiService:
         for s in sources:
             groups[(s.project_id, s.source_type)].append(s)
 
+        to_embed: list[tuple[MemoryChunk, str]] = []
         for (pid, stype), items in groups.items():
             rows = (
                 await db.execute(
@@ -131,24 +133,35 @@ class SmritiService:
                 seen.add(s.source_id)
                 cur = existing.get(s.source_id)
                 if cur is None:
-                    db.add(MemoryChunk(
+                    ch = MemoryChunk(
                         project_id=pid, source_type=stype, source_id=s.source_id,
                         content=s.content, content_hash=s.content_hash,
-                        metadata_=s.metadata, embedding=None,
-                    ))
+                        metadata_=s.metadata, embedding=None, embedding_local=None,
+                    )
+                    db.add(ch)
+                    to_embed.append((ch, s.content))
                     stats["inserted"] += 1
                 elif cur.content_hash != s.content_hash:
                     cur.content = s.content
                     cur.content_hash = s.content_hash
                     cur.metadata_ = s.metadata
                     cur.embedding = None
+                    to_embed.append((cur, s.content))
                     stats["updated"] += 1
                 else:
                     stats["skipped"] += 1
+                    if cur.embedding_local is None:
+                        to_embed.append((cur, s.content))  # backfill missing embedding
             for sid, c in existing.items():
                 if sid not in seen:
                     await db.delete(c)
                     stats["pruned"] += 1
+
+        # Embed new/changed chunks locally (free) in one batch.
+        if to_embed and local_embed.available():
+            vecs = await local_embed.embed_texts([c for _, c in to_embed])
+            for (ch, _), v in zip(to_embed, vecs, strict=False):
+                ch.embedding_local = v
 
         await db.commit()
         return stats
@@ -160,11 +173,58 @@ class SmritiService:
         db: AsyncSession,
         req: MemorySearchRequest,
     ) -> MemorySearchResponse:
+        # Prefer free local embeddings, then OpenAI, then trigram.
+        if local_embed.available():
+            qv = await local_embed.embed_one(req.query)
+            return await self._local_vector_search(db, req, qv)
         query_embedding = await self._embed(req.query)
-
         if query_embedding is not None:
             return await self._vector_search(db, req, query_embedding)
         return await self._trigram_search(db, req)
+
+    async def _local_vector_search(
+        self,
+        db: AsyncSession,
+        req: MemorySearchRequest,
+        query_vector: list[float],
+    ) -> MemorySearchResponse:
+        from sqlalchemy.sql.elements import Label
+
+        embedding_str = "[" + ",".join(str(v) for v in query_vector) + "]"
+        distance = f"(embedding_local <=> '{embedding_str}'::vector)"
+        similarity_expr: Label[float] = literal_column(f"1 - {distance}").label("similarity")
+
+        stmt = (
+            select(MemoryChunk, similarity_expr)
+            .where(MemoryChunk.embedding_local.is_not(None))
+            .where(literal_column(f"1 - {distance}") >= req.similarity_threshold)
+            .order_by(literal_column(distance))
+            .limit(req.limit)
+        )
+        if req.agent_id is not None:
+            stmt = stmt.where(MemoryChunk.agent_id == req.agent_id)
+        if req.project_id is not None:
+            stmt = stmt.where(MemoryChunk.project_id == req.project_id)
+        if req.source_types:
+            stmt = stmt.where(MemoryChunk.source_type.in_(req.source_types))
+
+        rows = await db.execute(stmt)
+        results = [
+            MemorySearchResult(
+                id=chunk.id,
+                content=chunk.content,
+                similarity=round(float(similarity), 4),
+                agent_id=chunk.agent_id,
+                project_id=chunk.project_id,
+                source_type=chunk.source_type,
+                metadata=chunk.metadata_,
+                created_at=chunk.created_at,
+            )
+            for chunk, similarity in rows.all()
+        ]
+        return MemorySearchResponse(
+            results=results, total=len(results), query=req.query, search_mode="local-vector"
+        )
 
     async def _vector_search(
         self,
@@ -298,8 +358,10 @@ class SmritiService:
                 MemoryChunkRead(
                     id=c.id,
                     content=c.content,
-                    has_embedding=c.embedding is not None,
+                    has_embedding=c.embedding is not None or c.embedding_local is not None,
                     agent_id=c.agent_id,
+                    project_id=c.project_id,
+                    source_type=c.source_type,
                     metadata=c.metadata_,
                     created_at=c.created_at,
                 )
@@ -334,7 +396,7 @@ class SmritiService:
 
         embedded_result = await db.execute(
             select(func.count()).select_from(MemoryChunk).where(
-                MemoryChunk.embedding.is_not(None)
+                MemoryChunk.embedding.is_not(None) | MemoryChunk.embedding_local.is_not(None)
             )
         )
         embedded = embedded_result.scalar_one()
@@ -343,7 +405,7 @@ class SmritiService:
             total_chunks=total,
             chunks_with_embedding=embedded,
             embedding_coverage_pct=round((embedded / total * 100) if total > 0 else 0.0, 1),
-            embedding_enabled=self.embedding_enabled(),
+            embedding_enabled=self.embedding_enabled() or local_embed.available(),
         )
 
 

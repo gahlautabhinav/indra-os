@@ -153,6 +153,7 @@ async def test_search_falls_back_to_trigram_when_no_embedding(
     req = MemorySearchRequest(query="find related memories")
 
     with (
+        patch("indra.domains.aditya.smriti.service.local_embed.available", return_value=False),
         patch.object(service, "_embed", new=AsyncMock(return_value=None)),
         patch.object(
             service,
@@ -177,6 +178,7 @@ async def test_search_uses_vector_when_embedding_available(
     fake_embedding = [0.5] * 1536
 
     with (
+        patch("indra.domains.aditya.smriti.service.local_embed.available", return_value=False),
         patch.object(service, "_embed", new=AsyncMock(return_value=fake_embedding)),
         patch.object(
             service,
@@ -190,3 +192,30 @@ async def test_search_uses_vector_when_embedding_available(
 
     mock_vec.assert_called_once()
     assert result.search_mode == "vector"
+
+
+@pytest.mark.asyncio
+async def test_search_prefers_local_vector_when_available(
+    service: SmritiService,
+) -> None:
+    db = AsyncMock()
+    req = MemorySearchRequest(query="local semantic query")
+
+    with (
+        patch("indra.domains.aditya.smriti.service.local_embed.available", return_value=True),
+        patch(
+            "indra.domains.aditya.smriti.service.local_embed.embed_one",
+            new=AsyncMock(return_value=[0.1] * 256),
+        ),
+        patch.object(
+            service,
+            "_local_vector_search",
+            new=AsyncMock(
+                return_value=MagicMock(search_mode="local-vector", results=[], total=0, query=req.query)
+            ),
+        ) as mock_local,
+    ):
+        result = await service.search(db, req)
+
+    mock_local.assert_called_once()
+    assert result.search_mode == "local-vector"

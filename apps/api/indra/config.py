@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     embedding_model: str = "text-embedding-3-small"
 
+    # Free local embeddings (model2vec) for Smriti project ingestion / search.
+    local_embeddings_enabled: bool = True
+    local_embed_model: str = "minishlab/potion-base-8M"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",")]
