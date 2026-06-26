@@ -678,6 +678,10 @@ export interface VaultListResponse {
 export interface VaultProject {
   project_root: string;
   leaf: string;
+  /** Tvasta project id (when this root is a registered project) — keys KG graph + graph.html. */
+  project_id: string | null;
+  /** True when the project has a graphify-out (KG graph + graph.html available). */
+  indexed: boolean;
   vaults: VaultSummary[];
   session_count: number;
   active_count: number;

@@ -310,6 +310,28 @@ class PrthiviService:
         return KgQueryResponse(project_id=project_id, mode=mode, context=context)
 
     @staticmethod
+    async def graph_html_path(db: AsyncSession, project_id: uuid.UUID) -> str:
+        """Filesystem path to graphify's standalone graph.html for this project.
+
+        Trusted local artifact — the path is derived from the registered project
+        root, never from request input, so there's no traversal surface.
+        """
+        p = await db.get(Project, project_id)
+        if p is None:
+            raise IndraException(
+                status_code=404, error_code="project_not_found", message="Project not found"
+            )
+        gout = p.graphify_out or str(Path(p.root_path) / "graphify-out")
+        html = Path(gout) / "graph.html"
+        if not html.is_file():
+            raise IndraException(
+                status_code=404,
+                error_code="graph_html_not_found",
+                message="This project has no graphify graph.html.",
+            )
+        return str(html)
+
+    @staticmethod
     async def kg_graph(db: AsyncSession, project_id: uuid.UUID) -> dict[str, Any]:
         """The project's LightRAG knowledge graph in ConstellationGraph shape.
 

@@ -745,6 +745,10 @@ export const indraApi = {
       .then((r) => r.data),
   getKgGraph: (id: string) =>
     apiClient.get<KgGraph>(`/projects/${id}/kg-graph`).then((r) => r.data),
+  getGraphHtml: (id: string) =>
+    apiClient
+      .get<string>(`/projects/${id}/graph-html`, { responseType: "text" })
+      .then((r) => r.data),
 
   // ── Vishnuh / Pervasion (ADITYA) ──
   getPervasionOverview: () =>

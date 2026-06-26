@@ -7,16 +7,36 @@ import { useVaultProjects } from "@/lib/api/hooks";
 import { StatTile } from "@/components/common/DevaScaffold";
 import { SecondBrainHero } from "./SecondBrainHero";
 import { VaultDetail } from "./VaultDetail";
+import { ProjectDetail } from "./ProjectDetail";
 
 const ADITYA = "#3a80d4";
 
-function ProjectCard({ p, onOpen }: { p: VaultProject; onOpen: (v: VaultSummary) => void }) {
+function ProjectCard({
+  p,
+  onOpen,
+  onOpenProject,
+}: {
+  p: VaultProject;
+  onOpen: (v: VaultSummary) => void;
+  onOpenProject: (p: VaultProject) => void;
+}) {
   return (
     <div className="rounded-lg border border-hairline bg-surface-1 p-4">
-      <div className="flex items-center gap-2">
+      <button
+        onClick={() => onOpenProject(p)}
+        className="group flex w-full items-center gap-2 text-left"
+        title="Open project — notes, KG graph, graph.html, sessions"
+      >
         <FolderGit2 className="h-4 w-4" style={{ color: ADITYA }} />
-        <span className="truncate text-sm font-semibold text-ink-primary">{p.leaf}</span>
-      </div>
+        <span className="truncate text-sm font-semibold text-ink-primary group-hover:text-white">
+          {p.leaf}
+        </span>
+        {p.indexed && (
+          <span className="ml-auto flex items-center gap-1 text-[10px] text-ink-ghost group-hover:text-ink-tertiary">
+            <Network className="h-2.5 w-2.5" /> KG
+          </span>
+        )}
+      </button>
       <p className="mt-0.5 truncate font-mono text-[10px] text-ink-ghost">{p.project_root}</p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
@@ -63,6 +83,7 @@ export function ProjectHub() {
   const { data, isLoading } = useVaultProjects();
   const projects = data?.projects ?? [];
   const [open, setOpen] = useState<VaultSummary | null>(null);
+  const [openProject, setOpenProject] = useState<VaultProject | null>(null);
 
   return (
     <div className="space-y-4">
@@ -82,7 +103,7 @@ export function ProjectHub() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {projects.map((p) => (
-            <ProjectCard key={p.project_root} p={p} onOpen={setOpen} />
+            <ProjectCard key={p.project_root} p={p} onOpen={setOpen} onOpenProject={setOpenProject} />
           ))}
         </div>
       )}
@@ -105,6 +126,32 @@ export function ProjectHub() {
             </div>
             <div className="min-h-0 flex-1">
               <VaultDetail vault={open} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* consolidated project detail overlay */}
+      {openProject && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+          onClick={() => setOpenProject(null)}
+        >
+          <div
+            className="flex h-[82vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-hairline bg-canvas shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-hairline px-4 py-2">
+              <span className="text-xs text-ink-ghost">Project · Second Brain</span>
+              <button
+                onClick={() => setOpenProject(null)}
+                className="text-ink-ghost hover:text-ink-secondary"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1">
+              <ProjectDetail project={openProject} />
             </div>
           </div>
         </div>

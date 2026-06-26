@@ -9,6 +9,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query, status
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from indra.database import get_db
@@ -77,6 +78,14 @@ async def kg_graph(
     project_id: uuid.UUID, db: AsyncSession = Depends(get_db)
 ) -> dict[str, Any]:
     return await PrthiviService.kg_graph(db, project_id)
+
+
+@router.get("/projects/{project_id}/graph-html", tags=["projects"])
+async def graph_html(
+    project_id: uuid.UUID, db: AsyncSession = Depends(get_db)
+) -> FileResponse:
+    path = await PrthiviService.graph_html_path(db, project_id)
+    return FileResponse(path, media_type="text/html")
 
 
 @router.get("/projects/runs", response_model=list[RunRead], tags=["projects"])

@@ -1232,6 +1232,15 @@ export function useKgGraph(id: string | null) {
   });
 }
 
+export function useGraphHtml(id: string | null) {
+  return useQuery({
+    queryKey: ["projects", id, "graph-html"],
+    queryFn: () => indraApi.getGraphHtml(id as string),
+    enabled: !!id,
+    staleTime: 300_000,
+  });
+}
+
 // ── Vishnuh — Pervasion (ADITYA) ──────────────────────────────────────────────
 
 export function usePervasionOverview() {

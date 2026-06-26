@@ -19,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from indra.database import get_db
+from indra.models.project import Project
 from indra.models.session import Session
 
 from . import vault_scan
@@ -91,15 +92,23 @@ async def list_vault_projects(db: AsyncSession = Depends(get_db)) -> dict:
     with its vault(s) and CLI session counts joined by normalized path."""
     session_index = await _session_index(db)
     vaults = vault_scan.scan_vaults()
+    # Join the Tvasta project registry (by normalized root) so the UI can reach a
+    # project's KG graph + graph.html, which are keyed by project id.
+    registry = {
+        vault_scan._norm(p.root_path): p for p in (await db.execute(select(Project))).scalars()
+    }
 
     projects: dict[str, dict] = {}
 
     def bucket(key: str, root: str) -> dict:
         if key not in projects:
             base = session_index.get(key)
+            reg = registry.get(key)
             projects[key] = {
                 "project_root": base["project_root"] if base else root,
                 "leaf": base["leaf"] if base else _project_leaf(root),
+                "project_id": str(reg.id) if reg else None,
+                "indexed": bool(reg and reg.graphify_out),
                 "vaults": [],
                 "session_count": base["session_count"] if base else 0,
                 "active_count": base["active_count"] if base else 0,
