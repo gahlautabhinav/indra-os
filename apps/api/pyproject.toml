@@ -34,6 +34,7 @@ dependencies = [
     "apscheduler>=3.10.4",
     "model2vec>=0.8.0",
     "lightrag-hku>=1.5.0",
+    "mcp>=1.2.0",
 ]
 
 [project.optional-dependencies]
