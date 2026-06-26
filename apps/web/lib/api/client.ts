@@ -62,6 +62,7 @@ import type {
   TrendEntry,
   TriggerResponse,
   IndexRun,
+  KgQueryResponse,
   ProjectInfo,
   UserRole,
   UserRoleRead,
@@ -737,6 +738,10 @@ export const indraApi = {
       .then((r) => r.data),
   getIndexRuns: (limit = 20) =>
     apiClient.get<IndexRun[]>("/projects/runs", { params: { limit } }).then((r) => r.data),
+  kgQuery: (id: string, query: string, mode = "mix") =>
+    apiClient
+      .post<KgQueryResponse>(`/projects/${id}/kg-query`, { query, mode })
+      .then((r) => r.data),
 
   // ── Vishnuh / Pervasion (ADITYA) ──
   getPervasionOverview: () =>

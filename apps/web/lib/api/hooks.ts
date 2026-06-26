@@ -1216,6 +1216,13 @@ export function useReindexProject() {
   });
 }
 
+export function useKgQuery() {
+  return useMutation({
+    mutationFn: ({ id, query, mode = "mix" }: { id: string; query: string; mode?: string }) =>
+      indraApi.kgQuery(id, query, mode),
+  });
+}
+
 // ── Vishnuh — Pervasion (ADITYA) ──────────────────────────────────────────────
 
 export function usePervasionOverview() {

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  BrainCircuit,
   CheckCircle2,
   FolderGit2,
   Loader2,
@@ -20,6 +21,7 @@ import {
   useDiscoverProjects,
   useExecuteWorkflowDef,
   useIndexRuns,
+  useKgQuery,
   useProjects,
   useReindexProject,
   useSetProjectEnabled,
@@ -35,7 +37,7 @@ import type {
 
 const ADITYA = "#3a80d4";
 
-type Tab = "index" | "workflows";
+type Tab = "index" | "kg" | "workflows";
 
 // ── Auto-index (Projects + Runs) ─────────────────────────────────────────────
 
@@ -235,6 +237,263 @@ function AutoIndexTab() {
   );
 }
 
+// ── Ask KG (LightRAG retrieval) ──────────────────────────────────────────────
+
+const KG_MODES = ["mix", "hybrid", "local", "global", "naive"] as const;
+
+// LightRAG `only_need_context` returns markdown with ```json fences (one object per
+// line) for entities / relationships / chunks + a plain reference list. Parse it into
+// sections; fall back to raw if the shape ever changes.
+type KgEntity = { entity: string; type?: string; description?: string };
+type KgRel = { entity1: string; entity2: string; description?: string };
+type KgChunk = { content: string; content_headings?: string };
+
+function parseKg(ctx: string) {
+  const entities: KgEntity[] = [];
+  const relationships: KgRel[] = [];
+  const chunks: KgChunk[] = [];
+  for (const m of ctx.matchAll(/```(?:json)?\s*([\s\S]*?)```/g)) {
+    for (const line of (m[1] ?? "").split("\n")) {
+      const s = line.trim();
+      if (!s.startsWith("{")) continue;
+      try {
+        const o = JSON.parse(s);
+        if (o.entity1 !== undefined && o.entity2 !== undefined) relationships.push(o);
+        else if (o.entity !== undefined) entities.push(o);
+        else if (o.content !== undefined) chunks.push(o);
+      } catch {
+        /* tolerate partial lines */
+      }
+    }
+  }
+  const references = [...ctx.matchAll(/^\[\d+\]\s+(.+)$/gm)].map((m) => (m[1] ?? "").trim());
+  const found = entities.length + relationships.length + chunks.length + references.length;
+  return { entities, relationships, chunks, references, found };
+}
+
+const ENTITY_COLOR: Record<string, string> = {
+  code: "#3a80d4",
+  document: "#2ab870",
+  rationale: "#b07ce0",
+};
+
+function splitDesc(desc?: string): { file?: string; community?: string } {
+  const m = (desc ?? "").match(/ in (.*?) — community (.+)$/);
+  if (!m) return {};
+  const out: { file?: string; community?: string } = {};
+  if (m[1]) out.file = m[1];
+  if (m[2]) out.community = m[2];
+  return out;
+}
+
+function uniqBy<T>(arr: T[], key: (x: T) => string): T[] {
+  const seen = new Set<string>();
+  return arr.filter((x) => {
+    const k = key(x);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
+function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
+  if (count === 0) return null;
+  return (
+    <div className="rounded-lg border border-hairline bg-surface-1">
+      <p className="border-b border-hairline px-3 py-2 text-[10px] uppercase tracking-wider text-ink-ghost">
+        {title} · {count}
+      </p>
+      <div className="max-h-[360px] overflow-auto p-2">{children}</div>
+    </div>
+  );
+}
+
+function KgResult({ context }: { context: string }) {
+  const [raw, setRaw] = useState(false);
+  const parsed = parseKg(context);
+  const entities = uniqBy(parsed.entities, (e) => e.entity);
+  const relationships = uniqBy(parsed.relationships, (r) => `${r.entity1}|${r.description}|${r.entity2}`);
+  const chunks = uniqBy(parsed.chunks, (c) => c.content);
+  const references = [...new Set(parsed.references)];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] uppercase tracking-wider text-ink-ghost">
+          {entities.length} entities · {relationships.length} relations · {chunks.length} chunks
+        </p>
+        <button
+          onClick={() => setRaw((v) => !v)}
+          className="rounded border border-hairline px-2 py-0.5 text-[10px] text-ink-tertiary hover:text-ink-secondary"
+        >
+          {raw ? "Pretty" : "Raw JSON"}
+        </button>
+      </div>
+
+      {raw || parsed.found === 0 ? (
+        <pre className="max-h-[520px] overflow-auto whitespace-pre-wrap rounded-lg border border-hairline bg-surface-1 px-3 py-3 font-mono text-[11px] leading-relaxed text-ink-tertiary">
+          {context || "(empty — nothing retrieved)"}
+        </pre>
+      ) : (
+        <div className="grid gap-3 lg:grid-cols-2">
+          <Section title="Entities" count={entities.length}>
+            <div className="space-y-1">
+              {entities.map((e, i) => {
+                const { file, community } = splitDesc(e.description);
+                const c = ENTITY_COLOR[e.type ?? ""] ?? "#637585";
+                return (
+                  <div key={i} className="rounded px-2 py-1.5 hover:bg-surface-2">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-[12px] text-ink-secondary">{e.entity}</span>
+                      {e.type && (
+                        <span
+                          className="shrink-0 rounded px-1 py-0.5 text-[9px] font-mono uppercase"
+                          style={{ background: `${c}22`, color: c }}
+                        >
+                          {e.type}
+                        </span>
+                      )}
+                    </div>
+                    {file && <p className="truncate font-mono text-[9px] text-ink-ghost">{file}</p>}
+                    {community && <p className="truncate text-[9px] text-ink-ghost/70">▤ {community}</p>}
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+
+          <div className="space-y-3">
+            <Section title="Relationships" count={relationships.length}>
+              <div className="space-y-1">
+                {relationships.map((r, i) => (
+                  <div key={i} className="flex items-center gap-1.5 px-2 py-1 text-[11px]">
+                    <span className="truncate text-ink-secondary">{r.entity1}</span>
+                    <span className="shrink-0 font-mono text-[9px]" style={{ color: ADITYA }}>
+                      ─{r.description ?? "rel"}→
+                    </span>
+                    <span className="truncate text-ink-secondary">{r.entity2}</span>
+                  </div>
+                ))}
+              </div>
+            </Section>
+
+            <Section title="Sources" count={references.length}>
+              <div className="space-y-0.5">
+                {references.map((r, i) => (
+                  <p key={i} className="truncate font-mono text-[10px] text-ink-tertiary">
+                    {r}
+                  </p>
+                ))}
+              </div>
+            </Section>
+          </div>
+
+          <div className="lg:col-span-2">
+            <Section title="Context chunks" count={chunks.length}>
+              <div className="space-y-1">
+                {chunks.map((c, i) => (
+                  <p key={i} className="rounded px-2 py-1 font-mono text-[10px] text-ink-tertiary hover:bg-surface-2">
+                    {c.content_headings ? <span className="text-ink-ghost">{c.content_headings} · </span> : null}
+                    {c.content}
+                  </p>
+                ))}
+              </div>
+            </Section>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KgQueryTab() {
+  const { data: projects = [] } = useProjects();
+  const kg = useKgQuery();
+  const indexed = projects.filter((p) => p.enabled && p.graphify_out);
+  const [projectId, setProjectId] = useState("");
+  const [query, setQuery] = useState("");
+  const [mode, setMode] = useState<string>("mix");
+
+  const selected = projectId || indexed[0]?.id || "";
+
+  function ask() {
+    if (!selected || !query.trim()) return;
+    kg.mutate({ id: selected, query: query.trim(), mode });
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-[12px] text-ink-tertiary">
+        Graph-aware retrieval over a project&apos;s knowledge graph (LightRAG, seeded from graphify —
+        entities + relations + vectors, fully local). Returns the retrieved context, no generation.
+      </p>
+
+      {indexed.length === 0 ? (
+        <div className="rounded-lg border border-hairline bg-surface-1 p-6 text-center text-xs text-ink-ghost">
+          No indexed projects yet. Enable a project in <span className="text-ink-secondary">Auto-Index</span> and
+          reindex it first.
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={selected}
+              onChange={(e) => setProjectId(e.target.value)}
+              className="rounded border border-hairline bg-surface-1 px-2 py-1.5 text-[12px] text-ink-secondary"
+            >
+              {indexed.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.root_path.split("/").pop() || p.root_path}
+                </option>
+              ))}
+            </select>
+            <select
+              value={mode}
+              onChange={(e) => setMode(e.target.value)}
+              className="rounded border border-hairline bg-surface-1 px-2 py-1.5 text-[12px] text-ink-secondary"
+              title="LightRAG retrieval mode"
+            >
+              {KG_MODES.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex gap-2">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && ask()}
+              placeholder="Ask the knowledge graph… e.g. how does auth work?"
+              className="flex-1 rounded border border-hairline bg-surface-1 px-3 py-2 text-[13px] text-ink-secondary placeholder:text-ink-ghost"
+            />
+            <button
+              onClick={ask}
+              disabled={!query.trim() || kg.isPending}
+              className="flex items-center gap-1.5 rounded px-3 py-2 text-[12px] text-white disabled:opacity-40"
+              style={{ background: ADITYA }}
+            >
+              {kg.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BrainCircuit className="h-3.5 w-3.5" />}
+              Ask
+            </button>
+          </div>
+
+          {kg.isError && (
+            <p className="text-[11px] text-rose-400/80">
+              {(kg.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
+                "Query failed — is LightRAG available and the project indexed?"}
+            </p>
+          )}
+
+          {kg.data && <KgResult context={kg.data.context} />}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Workflows (existing builder) ─────────────────────────────────────────────
 
 const STATUS_COLORS: Record<WorkflowStatus, string> = {
@@ -423,6 +682,7 @@ export default function TvastaPage() {
       <div className="flex items-center gap-1 border-b border-hairline">
         {([
           ["index", "Auto-Index"],
+          ["kg", "Ask KG"],
           ["workflows", "Workflows"],
         ] as const).map(([id, label]) => (
           <button
@@ -440,7 +700,7 @@ export default function TvastaPage() {
         ))}
       </div>
 
-      {tab === "index" ? <AutoIndexTab /> : <WorkflowsTab />}
+      {tab === "index" ? <AutoIndexTab /> : tab === "kg" ? <KgQueryTab /> : <WorkflowsTab />}
     </div>
   );
 }

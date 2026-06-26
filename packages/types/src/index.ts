@@ -788,6 +788,12 @@ export interface IndexRun {
   created_at: string;
 }
 
+export interface KgQueryResponse {
+  project_id: string;
+  mode: string;
+  context: string;
+}
+
 // ── RBAC / Aryamah ───────────────────────────────────────────────────────
 
 export type UserRole = "viewer" | "user" | "admin";

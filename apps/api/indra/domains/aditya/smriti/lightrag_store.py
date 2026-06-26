@@ -71,6 +71,19 @@ async def _get_rag(graphify_out: str):  # type: ignore[no-untyped-def]
     return rag
 
 
+# Scratchpad/tooling dirs that graphify sometimes scans into a project's graph but
+# aren't project code — they pollute retrieval + mislabel communities. Dropped by
+# source-file path segment.
+# ponytail: segment match. If a real project has a legit top-level `skills/` source
+# dir this over-filters — narrow the set then.
+_NOISE_SEGMENTS = frozenset({".claude", "skills", "node_modules", ".git", "__pycache__"})
+
+
+def _is_noise(source_file: str) -> bool:
+    parts = source_file.replace("\\", "/").lower().split("/")
+    return any(p in _NOISE_SEGMENTS for p in parts)
+
+
 def _graph_to_custom_kg(graphify_out: str) -> dict[str, list[dict[str, Any]]]:
     gj = os.path.join(graphify_out, "graph.json")
     try:
@@ -97,20 +110,26 @@ def _graph_to_custom_kg(graphify_out: str) -> dict[str, list[dict[str, Any]]]:
     relationships: list[dict[str, Any]] = []
     name_of: dict[Any, str] = {}
 
+    fp_of: dict[Any, str] = {}
     for n in nodes:
+        sf = str(n.get("source_file", ""))
+        if _is_noise(sf):
+            continue
         nid = n["id"]
         label = str(n.get("label") or nid)
-        sf = n.get("source_file", "")
         cid = n.get("community", -1)
         name_of[nid] = label
+        fp = sf or "custom_kg"  # real path → LightRAG cites it instead of "custom_kg"
+        fp_of[nid] = fp
         sid = f"chunk-{nid}"
         content = f"{label} in {sf} — community {cname(cid)}"
-        chunks.append({"content": content, "source_id": sid})
+        chunks.append({"content": content, "source_id": sid, "file_path": fp})
         entities.append({
             "entity_name": label,
             "entity_type": str(n.get("file_type") or "symbol"),
             "description": content,
             "source_id": sid,
+            "file_path": fp,
         })
 
     for e in graph.get("links") or graph.get("edges") or []:
@@ -127,6 +146,7 @@ def _graph_to_custom_kg(graphify_out: str) -> dict[str, list[dict[str, Any]]]:
                 "keywords": rel,
                 "weight": float(e.get("weight") or 1.0),
                 "source_id": f"chunk-{s}",
+                "file_path": fp_of[s],
             })
 
     return {"chunks": chunks, "entities": entities, "relationships": relationships}
