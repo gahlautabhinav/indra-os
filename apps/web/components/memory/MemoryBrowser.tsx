@@ -8,7 +8,10 @@ import {
   useIngestMemory,
   useSearchMemory,
   useDeleteMemoryChunk,
+  useProjects,
 } from "@/lib/api/hooks";
+
+const SOURCE_TYPES = ["graph_symbol", "community", "vault_note", "session", "trace"];
 import type { MemoryChunk, MemorySearchResult } from "@indra/types";
 
 const ADITYA = "#3a80d4";
@@ -77,6 +80,16 @@ function ChunkCard({
             >
               {chunk.has_embedding ? "⬡ embedded" : "◻ text only"}
             </span>
+
+            {/* Source type (ingested second-brain chunks) */}
+            {chunk.source_type && (
+              <span
+                className="label-caps px-1.5 py-0.5 rounded-[3px]"
+                style={{ background: "rgba(124,106,247,0.14)", color: "#9a8cf7" }}
+              >
+                {chunk.source_type}
+              </span>
+            )}
 
             {/* Similarity score */}
             {similarity !== undefined && (
@@ -200,33 +213,78 @@ function SearchPanel({
   onResults: (results: MemorySearchResult[], mode: string, query: string) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [projectId, setProjectId] = useState("");
+  const [sourceTypes, setSourceTypes] = useState<string[]>([]);
+  const { data: projects = [] } = useProjects();
   const { mutateAsync: search, isPending } = useSearchMemory();
+
+  const toggleType = (t: string) =>
+    setSourceTypes((s) => (s.includes(t) ? s.filter((x) => x !== t) : [...s, t]));
 
   const handleSearch = async () => {
     if (!query.trim()) return;
-    const resp = await search({ query: query.trim(), limit: 20, similarity_threshold: 0.3 });
+    const resp = await search({
+      query: query.trim(),
+      limit: 20,
+      similarity_threshold: 0.1,
+      ...(projectId ? { project_id: projectId } : {}),
+      ...(sourceTypes.length ? { source_types: sourceTypes } : {}),
+    });
     onResults(resp.results, resp.search_mode, resp.query);
   };
 
   return (
-    <div className="flex gap-2">
-      <input
-        type="text"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && void handleSearch()}
-        placeholder="Semantic search — ask anything…"
-        className="flex-1 rounded-[6px] border border-hairline bg-surface-2 px-3 py-2 text-sm text-ink-primary placeholder:text-ink-ghost focus:outline-none focus:ring-1 focus:ring-[#3a80d4]/50"
-      />
-      <button
-        onClick={() => void handleSearch()}
-        disabled={!query.trim() || isPending}
-        className="flex items-center gap-1.5 label-caps px-4 py-2 rounded-[6px] transition-colors disabled:opacity-40"
-        style={{ background: ADITYA, color: "#fff" }}
-      >
-        <SearchIcon className="h-3.5 w-3.5" />
-        {isPending ? "Searching…" : "Search"}
-      </button>
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && void handleSearch()}
+          placeholder="Search the second brain — symbols, communities, anything…"
+          className="flex-1 rounded-[6px] border border-hairline bg-surface-2 px-3 py-2 text-sm text-ink-primary placeholder:text-ink-ghost focus:outline-none focus:ring-1 focus:ring-[#3a80d4]/50"
+        />
+        <button
+          onClick={() => void handleSearch()}
+          disabled={!query.trim() || isPending}
+          className="flex items-center gap-1.5 label-caps px-4 py-2 rounded-[6px] transition-colors disabled:opacity-40"
+          style={{ background: ADITYA, color: "#fff" }}
+        >
+          <SearchIcon className="h-3.5 w-3.5" />
+          {isPending ? "Searching…" : "Search"}
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={projectId}
+          onChange={(e) => setProjectId(e.target.value)}
+          className="rounded-[5px] border border-hairline bg-surface-2 px-2 py-1 text-[11px] text-ink-secondary focus:outline-none"
+        >
+          <option value="">All projects</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.root_path.split(/[\\/]/).pop() || p.root_path}
+            </option>
+          ))}
+        </select>
+        {SOURCE_TYPES.map((t) => {
+          const on = sourceTypes.includes(t);
+          return (
+            <button
+              key={t}
+              onClick={() => toggleType(t)}
+              className="rounded px-2 py-1 text-[10px] font-mono"
+              style={
+                on
+                  ? { background: "rgba(124,106,247,0.18)", color: "#9a8cf7" }
+                  : { background: "var(--indra-surface-2)", color: "var(--indra-ink-ghost)" }
+              }
+            >
+              {t}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

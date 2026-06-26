@@ -196,6 +196,8 @@ export interface MemoryChunk {
   content: string;
   has_embedding: boolean;
   agent_id: string | null;
+  project_id?: string | null;
+  source_type?: string | null;
   metadata: Record<string, unknown>;
   created_at: string;
 }

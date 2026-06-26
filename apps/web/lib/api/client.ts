@@ -294,6 +294,8 @@ export const indraApi = {
     query: string;
     limit?: number;
     agent_id?: string;
+    project_id?: string;
+    source_types?: string[];
     similarity_threshold?: number;
   }) =>
     apiClient
