@@ -1,8 +1,14 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Absolute path to apps/api/.env so config loads the same regardless of cwd —
+# the MCP server and lightrag_ui launcher run from arbitrary project dirs.
+_ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=str(_ENV_FILE), extra="ignore")
 
     database_url: str = "postgresql+asyncpg://indra:indra_secret@localhost:5432/indra"
     redis_url: str = "redis://localhost:6379/0"
