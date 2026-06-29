@@ -131,9 +131,35 @@
     from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: translateY(0); }
   }
+  /* Live pulse ring — expanding halo on real-time data (design §11) */
+  @keyframes pulseRing {
+    0%   { transform: scale(1);   opacity: 0.55; }
+    80%  { transform: scale(2.6); opacity: 0; }
+    100% { transform: scale(2.6); opacity: 0; }
+  }
+  .live-ring { animation: pulseRing 2s cubic-bezier(0, 0, 0.2, 1) infinite; }
+
+  /* Skeleton shimmer — surface sweep for loading (design §9.2, §11) */
+  @keyframes skeletonSweep {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--indra-surface-2) 0%,
+      var(--indra-surface-3) 50%,
+      var(--indra-surface-2) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeletonSweep 1.5s ease-in-out infinite;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .agent-tile { animation: none !important; }
     .agent-dot-live { animation: none !important; }
+    .live-ring { animation: none !important; opacity: 0 !important; }
+    .skeleton { animation: none !important; background: var(--indra-surface-3); }
   }
 }
 

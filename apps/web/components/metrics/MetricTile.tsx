@@ -9,10 +9,16 @@ interface MetricTileProps {
   label: string;
   value: string | number;
   unit?: string;
-  delta?: number;        // e.g. +12 or -5
-  deltaLabel?: string;   // e.g. "vs last hour"
+  delta?: number; // e.g. +12 or -5
+  deltaLabel?: string; // e.g. "vs last hour"
   sparkline?: number[];
   domain?: DomainId;
+  /** Override the value color (use for health/state metrics). Defaults to ink-primary. */
+  valueColor?: string;
+  /** Short context line under the value, e.g. "6 running · 2 idle". */
+  hint?: string;
+  /** Render a live pulse beside the label. */
+  live?: boolean;
   loading?: boolean;
   className?: string;
 }
@@ -32,17 +38,15 @@ function trendDirection(delta?: number): TrendDirection {
 
 function DeltaIndicator({ delta, deltaLabel }: { delta: number; deltaLabel?: string }) {
   const dir = trendDirection(delta);
-  const color =
-    dir === "up" ? "text-healthy" : dir === "down" ? "text-critical" : "text-ink-tertiary";
+  const color = dir === "up" ? "text-healthy" : dir === "down" ? "text-critical" : "text-ink-tertiary";
   const arrow = dir === "up" ? "↑" : dir === "down" ? "↓" : "→";
   const sign = delta > 0 ? "+" : "";
 
   return (
-    <span className={`text-xs font-mono ${color}`}>
-      {arrow} {sign}{delta}
-      {deltaLabel && (
-        <span className="ml-1 text-ink-tertiary">{deltaLabel}</span>
-      )}
+    <span className={`font-mono text-[11px] tabular-nums ${color}`}>
+      {arrow} {sign}
+      {delta}
+      {deltaLabel && <span className="ml-1 text-ink-ghost">{deltaLabel}</span>}
     </span>
   );
 }
@@ -55,6 +59,9 @@ export function MetricTile({
   deltaLabel,
   sparkline,
   domain = "indra",
+  valueColor,
+  hint,
+  live = false,
   loading = false,
   className = "",
 }: MetricTileProps) {
@@ -62,33 +69,43 @@ export function MetricTile({
 
   return (
     <div
-      className={`domain-panel p-4 flex flex-col gap-2 ${className}`}
+      className={`domain-panel group flex flex-col gap-2.5 p-4 transition-colors duration-150 hover:bg-surface-2 ${className}`}
       data-domain={domain}
     >
-      <div className="flex items-start justify-between">
-        <p className="label-caps">{label}</p>
-        {sparkline && (
+      <div className="flex items-start justify-between gap-2">
+        <span className="flex items-center gap-1.5">
+          <span className="label-caps text-ink-tertiary">{label}</span>
+          {live && (
+            <span className="relative inline-flex h-1.5 w-1.5">
+              <span
+                className="live-ring absolute inset-0 rounded-full"
+                style={{ background: `${color}99` }}
+              />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ background: color }} />
+            </span>
+          )}
+        </span>
+        {sparkline && sparkline.length > 1 && (
           <Sparkline data={sparkline} color={color} width={64} height={20} />
         )}
       </div>
 
-      <div className="flex items-end gap-2">
+      <div className="flex items-baseline gap-1.5">
         {loading ? (
-          <div className="h-8 w-16 animate-pulse rounded bg-surface-3" />
+          <div className="skeleton h-9 w-20 rounded" />
         ) : (
           <p
-            className="metric-value font-mono leading-none"
-            style={{ color }}
+            className="font-mono font-bold tabular-nums leading-none tracking-tight"
+            style={{ fontSize: "32px", color: valueColor ?? "var(--indra-ink-primary)" }}
           >
             {value}
-            {unit && (
-              <span className="ml-1 text-base text-ink-secondary">{unit}</span>
-            )}
           </p>
         )}
+        {unit && !loading && <span className="font-mono text-sm text-ink-tertiary">{unit}</span>}
       </div>
 
-      {delta !== undefined && (
+      {hint && !loading && <p className="font-mono text-[11px] text-ink-ghost">{hint}</p>}
+      {delta !== undefined && !loading && (
         <DeltaIndicator delta={delta} {...(deltaLabel !== undefined ? { deltaLabel } : {})} />
       )}
     </div>
