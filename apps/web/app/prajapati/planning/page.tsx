@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Map, ArrowRight, CheckCircle } from "lucide-react";
 import { usePlanTemplates, useGeneratePlan, useCreateGoal } from "@/lib/api/hooks";
 import type { GeneratePlanResponse, PlanTemplate } from "@indra/types";
+import { DevaPageHeader } from "@/components/common/DevaScaffold";
+import { SkeletonRows } from "@/components/common/Skeleton";
 
 const PRAJAPATI = "#9a44d4";
 
@@ -82,7 +84,10 @@ function ResultPanel({ result }: { result: GeneratePlanResponse }) {
       <div className="flex items-center justify-between">
         <div>
           <p className="font-semibold text-ink-primary">{result.goal_title}</p>
-          <p className="text-xs text-ink-ghost">{result.estimated_tasks} tasks · {result.recommended_agents} agent steps</p>
+          <p className="text-xs text-ink-ghost">
+            <span className="font-mono tabular-nums text-ink-tertiary">{result.estimated_tasks}</span> tasks ·{" "}
+            <span className="font-mono tabular-nums text-ink-tertiary">{result.recommended_agents}</span> agent steps
+          </p>
         </div>
         <button
           className="btn-primary text-xs"
@@ -144,24 +149,21 @@ export default function PlanningPage() {
 
   return (
     <div className="p-6 space-y-5">
-      <div>
-        <p className="label-caps mb-1" style={{ color: PRAJAPATI }}>
-          Planning · Strategy Templates
-        </p>
-        <h1
-          className="font-bold tracking-tight text-ink-primary"
-          style={{ fontSize: "28px", letterSpacing: "-0.8px" }}
-        >
-          Plan Generator
-        </h1>
-      </div>
+      <DevaPageHeader
+        accent={PRAJAPATI}
+        deva="Planning"
+        role="Plans"
+        title="Plan Generator"
+        sanskrit="योजना"
+        description="turn a strategy template into a decomposed, saveable goal."
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Template picker */}
         <div className="space-y-3">
           <p className="label-caps text-ink-secondary">Select Template</p>
           {isLoading ? (
-            <div className="text-ink-ghost label-caps">Loading…</div>
+            <SkeletonRows rows={5} height={86} />
           ) : (
             <div className="space-y-2">
               {(templates ?? []).map((t) => (

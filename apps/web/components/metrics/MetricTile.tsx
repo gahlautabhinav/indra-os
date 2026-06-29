@@ -14,7 +14,7 @@ interface MetricTileProps {
   sparkline?: number[];
   domain?: DomainId;
   /** Override the value color (use for health/state metrics). Defaults to ink-primary. */
-  valueColor?: string;
+  valueColor?: string | undefined;
   /** Short context line under the value, e.g. "6 running · 2 idle". */
   hint?: string;
   /** Render a live pulse beside the label. */

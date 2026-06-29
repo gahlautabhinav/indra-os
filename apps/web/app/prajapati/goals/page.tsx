@@ -4,6 +4,9 @@ import { useState } from "react";
 import { Target, Plus, Trash2, Zap, ChevronRight } from "lucide-react";
 import { useGoals, useCreateGoal, useDeleteGoal, useDecomposeGoal, useUpdateGoal } from "@/lib/api/hooks";
 import type { Goal, GoalPriority, GoalStatus } from "@indra/types";
+import { DevaPageHeader } from "@/components/common/DevaScaffold";
+import { EmptyState } from "@/components/common/EmptyState";
+import { SkeletonCards } from "@/components/common/Skeleton";
 
 const PRAJAPATI = "#9a44d4";
 
@@ -41,7 +44,10 @@ function GoalCard({ goal }: { goal: Goal }) {
   const steps = goal.definition?.steps ?? [];
 
   return (
-    <div className="bg-surface-1 border border-hairline rounded-lg p-4 space-y-3">
+    <div
+      className="space-y-3 rounded-lg border border-hairline bg-surface-1 p-4 transition-colors hover:bg-surface-2"
+      style={{ borderTop: `2px solid ${PRAJAPATI}` }}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-1 flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -92,13 +98,13 @@ function GoalCard({ goal }: { goal: Goal }) {
 
       {/* Progress bar */}
       <div>
-        <div className="flex justify-between text-xs text-ink-ghost mb-1">
-          <span>{goal.agent_count} tasks</span>
-          <span>{goal.progress_pct}%</span>
+        <div className="mb-1 flex justify-between text-xs text-ink-ghost">
+          <span className="font-mono tabular-nums">{goal.agent_count} tasks</span>
+          <span className="font-mono tabular-nums">{goal.progress_pct}%</span>
         </div>
-        <div className="h-1 rounded-full bg-surface-2">
+        <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
           <div
-            className="h-1 rounded-full transition-all"
+            className="h-full rounded-full transition-all"
             style={{ width: `${goal.progress_pct}%`, background: PRAJAPATI }}
           />
         </div>
@@ -222,23 +228,19 @@ export default function GoalsPage() {
 
   return (
     <div className="p-6 space-y-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="label-caps mb-1" style={{ color: PRAJAPATI }}>
-            Goals · Strategic Objectives
-          </p>
-          <h1
-            className="font-bold tracking-tight text-ink-primary"
-            style={{ fontSize: "28px", letterSpacing: "-0.8px" }}
-          >
-            Mission Goals
-          </h1>
-        </div>
-        <button className="btn-primary flex items-center gap-2" onClick={() => setAdding(true)}>
-          <Plus size={15} />
-          New Goal
-        </button>
-      </div>
+      <DevaPageHeader
+        accent={PRAJAPATI}
+        deva="Goals"
+        role="Objectives"
+        title="Mission Goals"
+        sanskrit="लक्ष्याणि"
+        description="strategic objectives, decomposed into agent tasks."
+        actions={
+          <button className="btn-primary flex items-center gap-2" onClick={() => setAdding(true)}>
+            <Plus size={15} /> New Goal
+          </button>
+        }
+      />
 
       {/* Filter tabs */}
       <div className="flex gap-1 border-b border-hairline">
@@ -259,18 +261,26 @@ export default function GoalsPage() {
       </div>
 
       {isLoading ? (
-        <div className="p-8 text-center text-ink-ghost label-caps">Loading…</div>
+        <SkeletonCards count={6} height={170} />
+      ) : filtered.length === 0 ? (
+        <div className="rounded-xl border border-hairline bg-surface-1">
+          <EmptyState
+            icon={Target}
+            title={filterStatus === "all" ? "No goals yet" : `No ${filterStatus} goals`}
+            body="Define a strategic objective, then decompose it into agent tasks. Progress tracks as those tasks complete."
+            accent={PRAJAPATI}
+            action={
+              <button className="btn-primary flex items-center gap-2" onClick={() => setAdding(true)}>
+                <Plus size={15} /> New Goal
+              </button>
+            }
+          />
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((g) => (
             <GoalCard key={g.id} goal={g} />
           ))}
-          {filtered.length === 0 && (
-            <div className="col-span-3 p-12 text-center text-ink-ghost">
-              <Target size={32} className="mx-auto mb-3 opacity-30" />
-              <p className="label-caps">No goals yet</p>
-            </div>
-          )}
         </div>
       )}
 
