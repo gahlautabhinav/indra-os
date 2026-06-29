@@ -18,7 +18,7 @@ describe("MetricTile", () => {
     const { container } = render(
       <MetricTile label="Loading" value={0} loading />
     );
-    const skeleton = container.querySelector(".animate-pulse");
+    const skeleton = container.querySelector(".skeleton");
     expect(skeleton).toBeTruthy();
   });
 
@@ -26,7 +26,7 @@ describe("MetricTile", () => {
     const { container } = render(
       <MetricTile label="Ready" value={99} loading={false} />
     );
-    const skeleton = container.querySelector(".animate-pulse");
+    const skeleton = container.querySelector(".skeleton");
     expect(skeleton).toBeNull();
   });
 
