@@ -22,10 +22,23 @@ place, **without ever modifying their data** (every adapter is strictly read-onl
 - **Knowledge constellation** — a live, draggable, Obsidian-style force graph linking
   CLIs ↔ sessions ↔ projects; sessions that share a project cluster together, so
   cross-tool work (e.g. a Codex session used from Claude Code) is visible.
-- **Second Brain** — your Obsidian vaults, read-only, tied to the projects and agent
-  sessions that produced them: a project hub, a vault/note browser with an inline reader
-  (and "Open in Obsidian"), and one combined Obsidian-style force graph of every vault's
-  notes rendered as per-vault clusters — plus a rotating orbital view.
+- **Second Brain (Smriti)** — a per-project knowledge base. `graphify` turns a codebase
+  into a knowledge graph; INDRA keeps it in sync and serves it three ways: read-only
+  **Obsidian vaults** (project hub, inline note reader, combined force graph), a
+  **LightRAG** knowledge-graph + vector store for retrieval, and the project's own
+  `graph.html` inline. A single project view ties notes + KG graph + graph.html +
+  sessions together.
+- **Auto-index pipeline (Tvasta)** — one click (or on file change) rebuilds everything
+  from a single `graph.json`: Obsidian vault → local vector store → LightRAG KG →
+  master constellation, all kept consistent.
+- **Ask KG** — graph-aware retrieval over a project: a KG-aware answer (entities,
+  relations, sources) plus a live constellation of the knowledge graph itself. Fully
+  local — model2vec embeddings + a headless Claude session, no API keys.
+- **Native LightRAG UI** — launch LightRAG's own graph explorer + chat for any indexed
+  project (`py -3.14 -m indra.lightrag_ui "<project>"`), wired to INDRA's local models.
+- **MCP server** — exposes the second brain to your CLIs (`indra_list_projects`,
+  `indra_memory_search`, `indra_kg_query`) so Claude Code / Codex can query INDRA
+  mid-task. Register: `claude mcp add indra -- py -3.14 -m indra.mcp_server`.
 - **Event bus** — live Redis-stream view of system events.
 - **Discovery** — surfaces everything wired into your local Claude Code setup: skills,
   subagents, MCP servers, plugins, and hooks.
@@ -55,7 +68,8 @@ INDRA (Command)
 |---|---|
 | Frontend | Next.js 15 (App Router) · React 18 · TypeScript · TailwindCSS · reactflow · TanStack Query · Zustand |
 | Backend | FastAPI · SQLAlchemy 2 (async) · asyncpg · Pydantic v2 · Python 3.14 |
-| Datastores | PostgreSQL · Redis (Streams + Pub/Sub) |
+| Datastores | PostgreSQL (+ pgvector) · Redis (Streams + Pub/Sub) |
+| RAG / Knowledge | graphify · LightRAG (KG + vector) · model2vec (local embeddings) · MCP server |
 | Auth | JWT (HS256) · bcrypt · 3-layer guard (UI · API middleware · WS handshake) |
 | Tooling | ruff · mypy (strict) · pytest · ESLint · vitest |
 

@@ -41,12 +41,12 @@ INDRA (Command)              — the sovereign dashboard / command layer
 │   └── Jīvātmā       Agent identity
 │
 ├── ADITYA × 12   Governance
-│   ├── Smṛti         Memory / RAG · Second Brain (Obsidian vaults)
+│   ├── Smṛti         Memory / RAG · Second Brain (Obsidian + LightRAG KG)
 │   ├── Aryamā        RBAC
 │   ├── Varuṇaḥ       Policy engine
 │   ├── Savitā        Scheduler (APScheduler)
 │   ├── Bhagaḥ        Cost analytics
-│   ├── Tvaṣṭā        Workflow builder
+│   ├── Tvaṣṭā        Auto-index pipeline + workflow builder
 │   ├── Mitraḥ        Alliances
 │   ├── Pūṣā          Discovery (incl. the local Claude Code environment)
 │   ├── Vivasvān      Telemetry (host + workload)
@@ -64,7 +64,8 @@ INDRA (Command)              — the sovereign dashboard / command layer
 | Layer        | Technology |
 |--------------|------------|
 | API          | FastAPI · SQLAlchemy 2 (async) · asyncpg · Pydantic v2 |
-| Datastores   | PostgreSQL (primary) · Redis (pub/sub + streams) |
+| Datastores   | PostgreSQL + pgvector (primary) · Redis (pub/sub + streams) |
+| RAG / Knowledge | graphify · LightRAG (KG + vector) · model2vec (local embeddings) · MCP (stdio server) |
 | Auth         | JWT (HS256) via python-jose · bcrypt (passlib) |
 | Scheduling   | APScheduler |
 | Web          | Next.js 15 (App Router, Turbopack) · React 18 · TypeScript |
@@ -167,16 +168,35 @@ duplicate rows under concurrent syncs.
   (`documents` edge → project). Sessions that share a project cluster together
   (cross-CLI links). Rendered as a live, draggable, force-directed star map
   (`ConstellationGraph`).
-- **Second Brain (Smṛti)** — read-only Obsidian vaults. A scanner
-  (`smriti/vault_scan.py`) reads the registry (`%APPDATA%/obsidian/obsidian.json`) and
-  each vault on disk; every vault here is a `graphify`-generated code knowledge graph,
-  so its project root is recovered from the path (strip `…/graphify-out/<vault>`) and
-  matched to `Session.project_path`. Served live (catalog, note list, note body,
-  per-vault graph from the precomputed `graph.json`) — plus one **combined** force graph
-  of every vault (`/vaults/graph`, per-vault colour clusters, globally capped). Vault
-  summaries also fold into the master constellation via `rebuild_graph`. Note bodies are
-  read with a path-traversal/ADS guard and a bounded read; the store is never written.
-  The UI (`/aditya/smriti`) is a project hub + vault browser + the existing RAG memory.
+- **Second Brain (Smṛti)** — a per-project knowledge base, three views over one
+  `graphify` graph. (1) **Obsidian vaults**: a scanner (`smriti/vault_scan.py`) reads the
+  registry (`%APPDATA%/obsidian/obsidian.json`) and each vault on disk; the project root
+  is recovered from the path (strip `…/graphify-out/<vault>`) and matched to
+  `Session.project_path`. Served live (catalog, note list/body with path-traversal + ADS
+  guard, per-vault graph + one combined force graph). (2) **LightRAG store**
+  (`smriti/lightrag_store.py`): the project's `graph.json` is seeded straight into a
+  per-project `.lightrag` KG + vector store via `ainsert_custom_kg` (no LLM extraction);
+  embeddings are local (model2vec, 256-dim), keyword extraction uses a headless Claude
+  session, retrieval runs with `only_need_context` so no generation spend. Noise dirs
+  (`.claude`, `skills`, `node_modules`) are filtered and real `file_path`s preserved for
+  citations. (3) **pgvector** flat semantic search over ingested chunks. The UI
+  (`/aditya/smriti`) is a project hub (notes + KG graph + inline `graph.html` + sessions)
+  + vault browser + memory search. **Ask KG** (`/aditya/tvasta`) returns KG-aware context
+  or draws the live knowledge graph (`POST /projects/{id}/kg-query`, `/kg-graph`).
+- **Auto-index pipeline (Tvaṣṭā)** — keeps every derived store in sync from one source.
+  `tvastah/pipeline.py` runs, off the request path via the DB-queue worker:
+  `detect → graphify → semantic (Claude community naming) → vault → Smṛti ingest →
+  LightRAG seed → Naksatrani`. Triggered manually (`POST /projects/{id}/reindex`),
+  on a schedule (Savitā), or by the poller's change-detect (`detect_and_enqueue`).
+  Subprocess stages run via `subprocess.run` in `asyncio.to_thread` (Windows
+  SelectorEventLoop can't spawn under uvicorn).
+- **MCP server (`indra.mcp_server`)** — a stdio MCP server exposing the second brain to
+  coding-agent CLIs: `indra_list_projects`, `indra_memory_search` (pgvector),
+  `indra_kg_query` (LightRAG). Talks to the same Postgres + `.lightrag` stores, so it
+  works whether or not the API is up; all logs pinned to stderr to keep the JSON-RPC
+  stream clean. A companion launcher (`indra.lightrag_ui`) starts LightRAG's native web
+  UI for a project, feeding it INDRA's local model2vec + Claude via an OpenAI-compatible
+  shim so the existing store queries correctly.
 - **Discovery (Pūṣā)** — surfaces the local **Claude Code environment**: skills,
   subagents, MCP servers (global + per-project), installed plugins, and hooks, scanned
   from `~/.claude/`.
