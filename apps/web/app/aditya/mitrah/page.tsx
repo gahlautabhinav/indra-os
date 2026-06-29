@@ -3,6 +3,8 @@
 import { Handshake, ArrowRight } from "lucide-react";
 import { useAlliances } from "@/lib/api/hooks";
 import { DevaPageHeader, StatTile, ADITYA } from "@/components/common/DevaScaffold";
+import { SkeletonRows } from "@/components/common/Skeleton";
+import { EmptyState } from "@/components/common/EmptyState";
 
 export default function MitrahPage() {
   const { data, isLoading } = useAlliances({ limit: 200 });
@@ -24,15 +26,16 @@ export default function MitrahPage() {
         <StatTile accent="#4dc8c8" label="Linked Agents" value={data?.linked_agents ?? 0} />
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-hairline bg-surface-1">
+      <div className="overflow-hidden rounded-lg border border-hairline bg-surface-1" style={{ borderTop: `2px solid ${ADITYA}` }}>
         {isLoading ? (
-          <div className="py-12 text-center text-sm text-ink-ghost">Mapping alliances…</div>
+          <SkeletonRows rows={6} className="p-3" />
         ) : alliances.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <Handshake className="h-6 w-6" style={{ color: ADITYA, opacity: 0.5 }} />
-            <p className="text-sm text-ink-secondary">No alliances yet</p>
-            <p className="max-w-sm text-xs text-ink-ghost">When agents spawn sub-agents, the lineage bonds appear here as alliances.</p>
-          </div>
+          <EmptyState
+            icon={Handshake}
+            title="No alliances yet"
+            body="When agents spawn sub-agents, the lineage bonds appear here as alliances."
+            accent={ADITYA}
+          />
         ) : (
           <ul className="divide-y divide-hairline">
             {alliances.map((a, i) => (

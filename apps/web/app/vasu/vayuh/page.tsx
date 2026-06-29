@@ -3,6 +3,8 @@
 import { Wind, Radio } from "lucide-react";
 import { useChannels, useCommunicationOverview } from "@/lib/api/hooks";
 import { DevaPageHeader, StatTile, VASU } from "@/components/common/DevaScaffold";
+import { SkeletonRows } from "@/components/common/Skeleton";
+import { EmptyState } from "@/components/common/EmptyState";
 
 const PLUGIN_COLOR: Record<string, string> = {
   claude_code: "#d4843a",
@@ -48,22 +50,29 @@ export default function VayuhPage() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-hairline bg-surface-1">
+      <div
+        className="overflow-hidden rounded-lg border border-hairline bg-surface-1"
+        style={{ borderTop: `2px solid ${VASU}` }}
+      >
         {isLoading ? (
-          <div className="py-12 text-center text-sm text-ink-ghost">Tuning channels…</div>
-        ) : channels.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <Wind className="h-6 w-6" style={{ color: VASU, opacity: 0.5 }} />
-            <p className="text-sm text-ink-secondary">No active channels</p>
+          <div className="p-3">
+            <SkeletonRows rows={8} />
           </div>
+        ) : channels.length === 0 ? (
+          <EmptyState
+            icon={Wind}
+            accent={VASU}
+            title="No active channels"
+            body="Each agent session opens a channel on the bus. Active channels and their participants appear here as sessions run."
+          />
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-hairline text-left text-[10px] uppercase tracking-wider text-ink-ghost">
-                <th className="px-4 py-2 font-medium">Channel</th>
-                <th className="px-4 py-2 font-medium">Protocol</th>
-                <th className="px-4 py-2 font-medium">Participants</th>
-                <th className="px-4 py-2 font-medium">Last Activity</th>
+              <tr className="border-b border-hairline bg-surface-2 text-left">
+                <th className="label-caps px-4 py-2 text-ink-tertiary">Channel</th>
+                <th className="label-caps px-4 py-2 text-ink-tertiary">Protocol</th>
+                <th className="label-caps px-4 py-2 text-right text-ink-tertiary">Participants</th>
+                <th className="label-caps px-4 py-2 text-ink-tertiary">Last Activity</th>
               </tr>
             </thead>
             <tbody>
@@ -78,7 +87,7 @@ export default function VayuhPage() {
                         {c.plugin_type}
                       </span>
                     </td>
-                    <td className="px-4 py-3 font-mono tabular-nums text-[12px] text-ink-tertiary">{c.participants}</td>
+                    <td className="px-4 py-3 text-right font-mono tabular-nums text-[12px] text-ink-tertiary">{c.participants}</td>
                     <td className="px-4 py-3 font-mono text-[11px] text-ink-ghost">
                       {c.last_activity ? new Date(c.last_activity).toLocaleString() : "—"}
                     </td>

@@ -4,7 +4,11 @@ import { useState } from "react";
 import { Save, Anchor } from "lucide-react";
 import type { Agent, Checkpoint } from "@indra/types";
 import { useAgents, useCheckpoints, useCreateCheckpoint } from "@/lib/api/hooks";
-import { DevaHeader, StatPill, DevaEmptyState, RUDRA } from "@/components/rudra/DevaHeader";
+import { DevaPageHeader, StatTile } from "@/components/common/DevaScaffold";
+import { EmptyState } from "@/components/common/EmptyState";
+import { SkeletonRows } from "@/components/common/Skeleton";
+
+const RUDRA = "#c44450";
 
 export default function KurmahPage() {
   const { data, isLoading } = useCheckpoints();
@@ -27,21 +31,22 @@ export default function KurmahPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <DevaHeader
+      <DevaPageHeader
+        accent={RUDRA}
         deva="Kurmah"
-        role="Checkpoints · State Persistence"
-        title="The Tortoise Anchor"
+        role="Checkpoints"
+        title="Persistence Engine"
         sanskrit="कूर्मः"
         description="the steadying breath that snapshots agent state so work can be restored after interruption."
       />
 
       <div className="flex flex-wrap gap-3">
-        <StatPill label="Checkpoints" value={data?.total ?? 0} />
-        <StatPill label="Agents" value={agents.length} accent="#4dc8c8" />
+        <StatTile label="Checkpoints" value={data?.total ?? 0} accent={RUDRA} />
+        <StatTile label="Agents" value={agents.length} accent={RUDRA} />
       </div>
 
       {/* Create checkpoint */}
-      <div className="rounded-lg border border-hairline bg-surface-1 p-4">
+      <div className="rounded-lg border border-hairline bg-surface-1 p-4" style={{ borderTop: `2px solid ${RUDRA}` }}>
         <p className="mb-3 text-[10px] uppercase tracking-wider text-ink-ghost">Capture checkpoint</p>
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1">
@@ -77,14 +82,15 @@ export default function KurmahPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-hairline bg-surface-1">
+      <div className="overflow-hidden rounded-lg border border-hairline bg-surface-1" style={{ borderTop: `2px solid ${RUDRA}` }}>
         {isLoading ? (
-          <div className="py-12 text-center text-sm text-ink-ghost">Loading checkpoints…</div>
+          <div className="p-4"><SkeletonRows rows={6} /></div>
         ) : checkpoints.length === 0 ? (
-          <DevaEmptyState
-            icon={<Anchor className="h-5 w-5" />}
+          <EmptyState
+            icon={Anchor}
             title="No checkpoints saved"
-            hint="Capture a checkpoint above to snapshot an agent's state. Saved checkpoints will list here."
+            body="Capture a checkpoint above to snapshot an agent's state. Saved checkpoints will list here."
+            accent={RUDRA}
           />
         ) : (
           <ul className="divide-y divide-hairline">

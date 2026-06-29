@@ -3,6 +3,7 @@
 import { Cpu, MemoryStick, Activity, Coins } from "lucide-react";
 import { useTelemetryMetrics } from "@/lib/api/hooks";
 import { DevaPageHeader, StatTile, MeterBar, ADITYA } from "@/components/common/DevaScaffold";
+import { SkeletonCards } from "@/components/common/Skeleton";
 
 function gaugeColor(pct: number): string {
   if (pct >= 90) return "#e04040";
@@ -27,28 +28,28 @@ export default function VivasvanPage() {
       />
 
       {isLoading ? (
-        <div className="py-12 text-center text-sm text-ink-ghost">Reading telemetry…</div>
+        <SkeletonCards count={2} className="grid gap-4 md:grid-cols-2" height={120} />
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-lg border border-hairline bg-surface-1 p-4">
+            <div className="rounded-lg border border-hairline bg-surface-1 p-4" style={{ borderTop: `2px solid ${ADITYA}` }}>
               <p className="mb-3 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-ink-ghost">
                 <Cpu className="h-3 w-3" /> CPU
               </p>
               <div className="mb-1 flex items-baseline justify-between">
-                <span className="font-mono text-2xl font-bold text-ink-primary">{host?.cpu_percent ?? 0}%</span>
-                <span className="font-mono text-[11px] text-ink-ghost">{host?.cpu_count ?? 0} cores</span>
+                <span className="font-mono tabular-nums text-2xl font-bold text-ink-primary">{host?.cpu_percent ?? 0}%</span>
+                <span className="font-mono tabular-nums text-[11px] text-ink-ghost">{host?.cpu_count ?? 0} cores</span>
               </div>
               <MeterBar pct={host?.cpu_percent ?? 0} accent={gaugeColor(host?.cpu_percent ?? 0)} />
             </div>
 
-            <div className="rounded-lg border border-hairline bg-surface-1 p-4">
+            <div className="rounded-lg border border-hairline bg-surface-1 p-4" style={{ borderTop: `2px solid ${ADITYA}` }}>
               <p className="mb-3 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-ink-ghost">
                 <MemoryStick className="h-3 w-3" /> Memory
               </p>
               <div className="mb-1 flex items-baseline justify-between">
-                <span className="font-mono text-2xl font-bold text-ink-primary">{host?.memory_percent ?? 0}%</span>
-                <span className="font-mono text-[11px] text-ink-ghost">
+                <span className="font-mono tabular-nums text-2xl font-bold text-ink-primary">{host?.memory_percent ?? 0}%</span>
+                <span className="font-mono tabular-nums text-[11px] text-ink-ghost">
                   {host?.memory_used_gb ?? 0} / {host?.memory_total_gb ?? 0} GB
                 </span>
               </div>

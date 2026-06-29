@@ -1,8 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { MessageSquare } from "lucide-react";
 import { useSessions, useSessionEvents } from "@/lib/api/hooks";
+import { DevaPageHeader, StatTile } from "@/components/common/DevaScaffold";
+import { SkeletonRows } from "@/components/common/Skeleton";
+import { EmptyState } from "@/components/common/EmptyState";
 import type { Session, SessionEventItem } from "@indra/types";
+
+const ACCENT = "#d4843a";
 
 const PLUGIN_LABELS: Record<string, string> = {
   claude_code: "Claude Code",
@@ -21,20 +27,6 @@ const PLUGIN_COLORS: Record<string, string> = {
   opencode: "#e04040",
   antigravity: "#a855f7",
 };
-
-function StatChip({ label, value, color }: { label: string; value: string | number; color?: string }) {
-  return (
-    <div
-      className="flex flex-col gap-0.5 px-4 py-2.5 rounded-[6px] border border-hairline bg-surface-2 min-w-[120px]"
-      style={{ borderTop: `2px solid ${color ?? "#d4843a"}` }}
-    >
-      <span className="label-caps text-ink-ghost">{label}</span>
-      <span className="font-mono font-bold tabular-nums" style={{ fontSize: "24px", lineHeight: 1, color: "#e8eef4" }}>
-        {value}
-      </span>
-    </div>
-  );
-}
 
 function PluginBadge({ pluginType }: { pluginType: string }) {
   const label = PLUGIN_LABELS[pluginType] ?? pluginType;
@@ -72,7 +64,6 @@ function SessionRow({ session, selected, onClick }: { session: Session; selected
       className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors border-b border-hairline last:border-0 ${
         selected ? "bg-surface-3" : "hover:bg-surface-2/60"
       }`}
-      style={selected ? { borderLeft: "2px solid #d4843a" } : {}}
     >
       <StatusDot status={session.status} />
 
@@ -80,7 +71,7 @@ function SessionRow({ session, selected, onClick }: { session: Session; selected
         <span className="truncate text-sm text-ink-secondary">
           {title ?? projectName ?? `${session.plugin_type} session`}
         </span>
-        <span className="flex items-center gap-1.5 font-mono text-[10px] text-ink-ghost">
+        <span className="flex items-center gap-1.5 font-mono tabular-nums text-[10px] text-ink-ghost">
           <span>{session.id.slice(0, 8)}…</span>
           {title && projectName && <span className="truncate">· {projectName}</span>}
         </span>
@@ -96,7 +87,7 @@ function SessionRow({ session, selected, onClick }: { session: Session; selected
         {cost > 0 ? `$${cost.toFixed(4)}` : "—"}
       </span>
 
-      <span className="font-mono text-ink-ghost shrink-0" style={{ fontSize: "10px" }}>
+      <span className="font-mono tabular-nums text-ink-ghost shrink-0" style={{ fontSize: "10px" }}>
         {session.started_at ? new Date(session.started_at).toLocaleString() : "—"}
       </span>
     </button>
@@ -116,15 +107,15 @@ function EventTurn({ event }: { event: SessionEventItem }) {
   if (!content) return null;
   const isTool = event.event_type === "tool_call" || event.event_type === "tool_result";
   return (
-    <div className="border-l-2 pl-3" style={{ borderColor: style.color }}>
+    <div className="border-l pl-3" style={{ borderColor: style.color }}>
       <div className="mb-0.5 flex items-center gap-2">
         <span className="text-[10px] font-mono font-semibold tracking-wider" style={{ color: style.color }}>
           {style.label}
         </span>
         {event.output_tokens > 0 && (
-          <span className="font-mono text-[9px] text-ink-ghost">{event.output_tokens} tok out</span>
+          <span className="font-mono tabular-nums text-[9px] text-ink-ghost">{event.output_tokens} tok out</span>
         )}
-        <span className="ml-auto font-mono text-[9px] text-ink-ghost">
+        <span className="ml-auto font-mono tabular-nums text-[9px] text-ink-ghost">
           {event.timestamp ? new Date(event.timestamp).toLocaleTimeString() : ""}
         </span>
       </div>
@@ -156,7 +147,7 @@ function SessionDetail({ session }: { session: Session }) {
       </div>
 
       {/* Stat row */}
-      <div className="flex flex-wrap gap-3 border-b border-hairline px-4 py-3 text-[11px] text-ink-ghost">
+      <div className="flex flex-wrap gap-3 border-b border-hairline px-4 py-3 font-mono tabular-nums text-[11px] text-ink-ghost">
         <span>{((meta?.token_count as number) ?? 0).toLocaleString()} tok</span>
         <span>${((meta?.cost_usd as number) ?? 0).toFixed(4)}</span>
         <span>{convo?.total ?? ((meta?.event_count as number) ?? 0)} events</span>
@@ -169,10 +160,12 @@ function SessionDetail({ session }: { session: Session }) {
       {/* Conversation timeline */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="px-4 py-2">
-          <span className="label-caps text-ink-ghost">Conversation — prompts, responses & tool calls</span>
+          <span className="label-caps text-ink-tertiary">Conversation — prompts, responses & tool calls</span>
         </div>
         {isLoading ? (
-          <div className="px-4 py-8 text-center text-sm text-ink-ghost">Reading session log…</div>
+          <div className="px-4 py-2">
+            <SkeletonRows rows={5} height={48} />
+          </div>
         ) : convo && !convo.available ? (
           <div className="px-4 py-8 text-center text-xs text-ink-ghost">
             This adapter ({session.plugin_type}) stores conversations in a binary format INDRA can&apos;t decode yet.
@@ -185,7 +178,7 @@ function SessionDetail({ session }: { session: Session }) {
               <EventTurn key={e.id} event={e} />
             ))}
             {convo?.truncated && (
-              <p className="pt-2 text-center font-mono text-[10px] text-ink-ghost">
+              <p className="pt-2 text-center font-mono tabular-nums text-[10px] text-ink-ghost">
                 Showing first {events.length} turns — session continues.
               </p>
             )}
@@ -225,29 +218,33 @@ export default function SomahPage() {
   return (
     <div className="flex h-full flex-col gap-0 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
-        <div>
-          <h1 className="text-base font-semibold text-ink-primary">Sessions</h1>
-          <p className="text-xs text-ink-ghost font-mono mt-0.5">सोमः — CLI adapter sessions</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1.5 text-xs text-ink-ghost cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={activeOnly}
-              onChange={(e) => setActiveOnly(e.target.checked)}
-              className="w-3 h-3 rounded"
-            />
-            Active only
-          </label>
-        </div>
+      <div className="border-b border-hairline px-6 py-4">
+        <DevaPageHeader
+          accent={ACCENT}
+          deva="Somaḥ"
+          role="Sessions"
+          title="Sessions"
+          sanskrit="सोमः"
+          description="CLI adapter sessions across every connected tool."
+          actions={
+            <label className="flex items-center gap-1.5 text-xs text-ink-ghost cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={activeOnly}
+                onChange={(e) => setActiveOnly(e.target.checked)}
+                className="w-3 h-3 rounded"
+              />
+              Active only
+            </label>
+          }
+        />
       </div>
 
       {/* Stats */}
       <div className="flex gap-3 px-6 py-3 border-b border-hairline overflow-x-auto">
-        <StatChip label="Total" value={total} color="#d4843a" />
-        <StatChip label="Active" value={active} color="#2ab870" />
-        <StatChip label="Adapters" value={plugins} color="#4dc8c8" />
+        <StatTile accent={ACCENT} label="Total" value={total} />
+        <StatTile accent={ACCENT} label="Active" value={active} />
+        <StatTile accent={ACCENT} label="Adapters" value={plugins} />
       </div>
 
       {/* Plugin filter tabs */}
@@ -272,12 +269,16 @@ export default function SomahPage() {
         {/* Session list */}
         <div className="flex flex-col border-r border-hairline overflow-y-auto" style={{ width: "55%" }}>
           {isLoading ? (
-            <div className="flex items-center justify-center h-32 text-ink-ghost text-sm">Loading sessions…</div>
-          ) : sessions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-32 gap-2">
-              <span className="text-ink-ghost text-sm">No sessions found</span>
-              <span className="text-ink-ghost text-xs font-mono">Claude Code, Kiro, Codex, Gemini, OpenCode</span>
+            <div className="p-3">
+              <SkeletonRows rows={8} height={56} />
             </div>
+          ) : sessions.length === 0 ? (
+            <EmptyState
+              icon={MessageSquare}
+              accent={ACCENT}
+              title="No sessions yet"
+              body="Sessions appear here when Claude Code, Kiro, Codex, Gemini or OpenCode runs and syncs to INDRA."
+            />
           ) : (
             sessions.map((s) => (
               <SessionRow
@@ -295,9 +296,12 @@ export default function SomahPage() {
           {selected ? (
             <SessionDetail session={selected} />
           ) : (
-            <div className="flex items-center justify-center h-full text-ink-ghost text-sm">
-              Select a session
-            </div>
+            <EmptyState
+              icon={MessageSquare}
+              accent={ACCENT}
+              title="Select a session"
+              body="Pick a session to read its prompts, responses and tool calls turn by turn."
+            />
           )}
         </div>
       </div>

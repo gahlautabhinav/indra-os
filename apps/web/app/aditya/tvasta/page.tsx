@@ -30,6 +30,9 @@ import {
   useWorkflowDefs,
 } from "@/lib/api/hooks";
 import { ConstellationGraph } from "@/components/knowledge/ConstellationGraph";
+import { DevaPageHeader } from "@/components/common/DevaScaffold";
+import { SkeletonRows, SkeletonCards } from "@/components/common/Skeleton";
+import { EmptyState } from "@/components/common/EmptyState";
 import type {
   IndexRun,
   IndexStage,
@@ -190,9 +193,12 @@ function AutoIndexTab() {
       <div className="flex items-center gap-3">
         <div className="flex flex-wrap gap-3">
           <span className="flex items-center gap-1.5 text-[11px] text-ink-tertiary">
-            <FolderGit2 className="h-3.5 w-3.5" /> {projects.length} projects
+            <FolderGit2 className="h-3.5 w-3.5" />{" "}
+            <span className="font-mono tabular-nums">{projects.length}</span> projects
           </span>
-          <span className="text-[11px] text-emerald-400/80">{enabled.length} auto-indexing</span>
+          <span className="text-[11px] text-emerald-400/80">
+            <span className="font-mono tabular-nums">{enabled.length}</span> auto-indexing
+          </span>
         </div>
         <button
           onClick={() => discover.mutate()}
@@ -204,14 +210,21 @@ function AutoIndexTab() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-lg border border-hairline bg-surface-1">
+        <div className="rounded-lg border border-hairline bg-surface-1" style={{ borderTop: "2px solid #3a80d4" }}>
           <p className="border-b border-hairline px-3 py-2 text-[10px] uppercase tracking-wider text-ink-ghost">
             Projects — toggle to auto-index
           </p>
           {isLoading ? (
-            <p className="p-4 text-xs text-ink-ghost">Loading…</p>
+            <div className="p-3">
+              <SkeletonRows rows={5} height={38} />
+            </div>
           ) : projects.length === 0 ? (
-            <p className="p-4 text-xs text-ink-ghost">No projects. Click “Discover projects”.</p>
+            <EmptyState
+              icon={FolderGit2}
+              title="No projects discovered"
+              body="Click “Discover projects” to scan for git repositories. Toggle one on to auto-index it into the knowledge graph."
+              accent={ADITYA}
+            />
           ) : (
             <div className="max-h-[560px] overflow-y-auto">
               {projects.map((p) => (
@@ -221,12 +234,17 @@ function AutoIndexTab() {
           )}
         </div>
 
-        <div className="rounded-lg border border-hairline bg-surface-1">
+        <div className="rounded-lg border border-hairline bg-surface-1" style={{ borderTop: "2px solid #3a80d4" }}>
           <p className="border-b border-hairline px-3 py-2 text-[10px] uppercase tracking-wider text-ink-ghost">
             Index runs — live
           </p>
           {runs.length === 0 ? (
-            <p className="p-4 text-xs text-ink-ghost">No runs yet. Enable a project and hit Reindex.</p>
+            <EmptyState
+              icon={PlayCircle}
+              title="No runs yet"
+              body="Enable a project and hit Reindex — each run streams its stages here as it graphifies, builds the vault, and rebuilds the graph."
+              accent={ADITYA}
+            />
           ) : (
             <div className="max-h-[560px] overflow-y-auto">
               {runs.map((r) => (
@@ -565,7 +583,10 @@ function WorkflowCard({ wf }: { wf: WorkflowDef }) {
   const steps = wf.definition?.steps ?? [];
 
   return (
-    <div className="bg-surface-1 border border-hairline rounded-lg p-4 space-y-3">
+    <div
+      className="bg-surface-1 border border-hairline rounded-lg p-4 space-y-3"
+      style={{ borderTop: "2px solid #3a80d4" }}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -650,6 +671,7 @@ function AddWorkflowModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
       <div
         className="bg-surface-1 border border-hairline rounded-xl p-6 w-full max-w-lg space-y-4"
+        style={{ boxShadow: "var(--shadow-floating)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="font-bold text-ink-primary text-lg">New Workflow</h2>
@@ -698,18 +720,29 @@ function WorkflowsTab() {
         </button>
       </div>
       {isLoading ? (
-        <div className="p-8 text-center text-ink-ghost label-caps">Loading…</div>
+        <SkeletonCards count={6} height={130} />
+      ) : (workflows ?? []).length === 0 ? (
+        <div
+          className="rounded-lg border border-hairline bg-surface-1"
+          style={{ borderTop: "2px solid #3a80d4" }}
+        >
+          <EmptyState
+            icon={Workflow}
+            title="No workflows defined"
+            body="Workflows chain steps — notify, spawn an agent, and more — into a repeatable definition you can run on demand. Create one to get started."
+            accent={ADITYA}
+            action={
+              <button className="btn-primary flex items-center gap-2" onClick={() => setAdding(true)}>
+                <Plus size={15} /> New Workflow
+              </button>
+            }
+          />
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {(workflows ?? []).map((wf) => (
             <WorkflowCard key={wf.id} wf={wf} />
           ))}
-          {(workflows ?? []).length === 0 && (
-            <div className="col-span-3 p-12 text-center text-ink-ghost">
-              <Workflow size={32} className="mx-auto mb-3 opacity-30" />
-              <p className="label-caps">No workflows defined</p>
-            </div>
-          )}
         </div>
       )}
       {adding && <AddWorkflowModal onClose={() => setAdding(false)} />}
@@ -724,17 +757,14 @@ export default function TvastaPage() {
 
   return (
     <div className="p-6 space-y-5">
-      <div>
-        <p className="label-caps mb-1" style={{ color: ADITYA }}>
-          Tvaṣṭā · Orchestration
-        </p>
-        <h1 className="font-bold tracking-tight text-ink-primary" style={{ fontSize: "28px", letterSpacing: "-0.8px" }}>
-          The Craftsman
-        </h1>
-        <p className="mt-1 text-sm text-ink-tertiary">
-          त्वष्टा — shapes raw code into knowledge: graphify → vault → graph → memory, with no manual prompts.
-        </p>
-      </div>
+      <DevaPageHeader
+        accent={ADITYA}
+        deva="Tvasta"
+        role="Orchestration"
+        title="The Craftsman"
+        sanskrit="त्वष्टा"
+        description="shapes raw code into knowledge: graphify → vault → graph → memory, with no manual prompts."
+      />
 
       <div className="flex items-center gap-1 border-b border-hairline">
         {([

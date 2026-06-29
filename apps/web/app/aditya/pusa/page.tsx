@@ -1,8 +1,10 @@
 "use client";
 
-import { Compass, Plug, Server, Bot, Sparkles, Webhook, Package } from "lucide-react";
+import { Plug, Server, Bot, Sparkles, Webhook, Package } from "lucide-react";
 import { useDiscoveryRegistry, useClaudeEnv } from "@/lib/api/hooks";
 import { DevaPageHeader, StatTile, ADITYA } from "@/components/common/DevaScaffold";
+import { SkeletonCards } from "@/components/common/Skeleton";
+import { EmptyState } from "@/components/common/EmptyState";
 
 const STATUS_COLOR: Record<string, string> = {
   healthy: "#2ab870",
@@ -23,9 +25,9 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-hairline bg-surface-1 p-4">
+    <div className="rounded-lg border border-hairline bg-surface-1 p-4" style={{ borderTop: `2px solid ${ADITYA}` }}>
       <p className="mb-3 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-ink-ghost">
-        {icon} {title} <span className="ml-auto font-mono text-ink-tertiary">{count}</span>
+        {icon} {title} <span className="ml-auto font-mono tabular-nums text-ink-tertiary">{count}</span>
       </p>
       <div className="max-h-64 overflow-y-auto">{children}</div>
     </div>
@@ -57,35 +59,49 @@ export default function PusaPage() {
       </div>
 
       {isLoading ? (
-        <div className="py-12 text-center text-sm text-ink-ghost">Discovering services…</div>
+        <SkeletonCards count={2} className="grid gap-4 md:grid-cols-2" height={180} />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-lg border border-hairline bg-surface-1 p-4">
+          <div className="rounded-lg border border-hairline bg-surface-1 p-4" style={{ borderTop: `2px solid ${ADITYA}` }}>
             <p className="mb-3 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-ink-ghost">
               <Plug className="h-3 w-3" /> CLI Plugins
             </p>
-            <ul className="space-y-2">
-              {plugins.map((p) => {
-                const color = STATUS_COLOR[p.status] ?? "#637585";
-                return (
-                  <li key={p.type} className="flex items-center gap-2">
-                    <Bot className="h-3.5 w-3.5 text-ink-tertiary" />
-                    <span className="text-sm text-ink-secondary">{p.type}</span>
-                    <span className="ml-auto rounded px-2 py-0.5 text-[10px] font-mono uppercase" style={{ background: `${color}22`, color }}>
-                      {p.status}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
+            {plugins.length === 0 ? (
+              <EmptyState
+                icon={Plug}
+                title="No plugins reachable"
+                body="Connected CLI plugins (Claude, Codex, …) surface here once they report in."
+                accent={ADITYA}
+              />
+            ) : (
+              <ul className="space-y-2">
+                {plugins.map((p) => {
+                  const color = STATUS_COLOR[p.status] ?? "#637585";
+                  return (
+                    <li key={p.type} className="flex items-center gap-2">
+                      <Bot className="h-3.5 w-3.5 text-ink-tertiary" />
+                      <span className="text-sm text-ink-secondary">{p.type}</span>
+                      <span className="ml-auto rounded px-2 py-0.5 text-[10px] font-mono uppercase" style={{ background: `${color}22`, color }}>
+                        {p.status}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
 
-          <div className="rounded-lg border border-hairline bg-surface-1 p-4">
+          <div className="rounded-lg border border-hairline bg-surface-1 p-4" style={{ borderTop: `2px solid ${ADITYA}` }}>
             <p className="mb-3 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-ink-ghost">
               <Server className="h-3 w-3" /> MCP Servers
             </p>
             {mcp.length === 0 ? (
-              <p className="py-4 text-center text-xs text-ink-ghost">No MCP servers registered.</p>
+              <EmptyState
+                icon={Server}
+                title="No MCP servers registered"
+                body="Reachable MCP servers and their transport status appear here once configured."
+                accent={ADITYA}
+              />
             ) : (
               <ul className="space-y-2">
                 {mcp.map((m) => {
@@ -104,13 +120,6 @@ export default function PusaPage() {
               </ul>
             )}
           </div>
-        </div>
-      )}
-
-      {!isLoading && plugins.length === 0 && mcp.length === 0 && (
-        <div className="flex flex-col items-center gap-2 py-8 text-center">
-          <Compass className="h-6 w-6" style={{ color: ADITYA, opacity: 0.5 }} />
-          <p className="text-xs text-ink-ghost">Nothing discoverable right now.</p>
         </div>
       )}
 

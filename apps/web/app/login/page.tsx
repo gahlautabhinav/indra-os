@@ -87,7 +87,7 @@ export default function LoginPage() {
               return (
                 <div
                   key={d.id}
-                  className="group flex items-center gap-3 rounded-md px-3 py-2.5 transition-colors hover:bg-surface-1/60"
+                  className="group flex items-center gap-3 rounded-md px-3 py-2.5 transition-all duration-200 hover:bg-surface-1/60 motion-safe:hover:translate-x-0.5"
                   style={{ borderLeft: `2px solid ${d.color}` }}
                 >
                   <span
@@ -163,7 +163,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading || !email || !password}
-                className="btn-primary flex w-full items-center justify-center gap-2"
+                className="btn-primary flex w-full items-center justify-center gap-2 transition motion-safe:active:scale-[0.98]"
               >
                 {loading ? (
                   <>

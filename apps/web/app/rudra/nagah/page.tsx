@@ -3,7 +3,11 @@
 import { ShieldCheck, Check } from "lucide-react";
 import type { RuntimeError } from "@indra/types";
 import { useErrors, useAcknowledgeError } from "@/lib/api/hooks";
-import { DevaHeader, StatPill, DevaEmptyState, RUDRA } from "@/components/rudra/DevaHeader";
+import { DevaPageHeader, StatTile } from "@/components/common/DevaScaffold";
+import { EmptyState } from "@/components/common/EmptyState";
+import { SkeletonRows } from "@/components/common/Skeleton";
+
+const RUDRA = "#c44450";
 
 const SEV_COLOR: Record<string, string> = {
   critical: "#e04040",
@@ -33,28 +37,30 @@ export default function NagahPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <DevaHeader
+      <DevaPageHeader
+        accent={RUDRA}
         deva="Nagah"
-        role="Error Detection"
-        title="Error Serpent"
+        role="Errors"
+        title="Error Detection"
         sanskrit="नागः"
         description="the serpent that detects faults lurking in the runtime — agents in error and failed tasks."
       />
 
       <div className="flex flex-wrap gap-3">
-        <StatPill label="Total" value={errors.length} />
-        <StatPill label="Critical" value={critical} accent="#e04040" />
-        <StatPill label="Warnings" value={warnings} accent="#e0a030" />
+        <StatTile label="Total" value={errors.length} accent={RUDRA} />
+        <StatTile label="Critical" value={critical} accent={RUDRA} />
+        <StatTile label="Warnings" value={warnings} accent={RUDRA} />
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-hairline bg-surface-1">
+      <div className="overflow-hidden rounded-lg border border-hairline bg-surface-1" style={{ borderTop: `2px solid ${RUDRA}` }}>
         {isLoading ? (
-          <div className="py-12 text-center text-sm text-ink-ghost">Scanning for errors…</div>
+          <div className="p-4"><SkeletonRows rows={6} /></div>
         ) : errors.length === 0 ? (
-          <DevaEmptyState
-            icon={<ShieldCheck className="h-5 w-5" />}
+          <EmptyState
+            icon={ShieldCheck}
             title="No errors detected"
-            hint="Nagah continuously watches for agents in an error state and failed tasks. All clear."
+            body="Nagah continuously watches for agents in an error state and failed tasks. All clear."
+            accent="var(--state-healthy)"
           />
         ) : (
           <table className="w-full text-sm">

@@ -1,7 +1,10 @@
 "use client";
 
+import { PieChart } from "lucide-react";
 import { useShareAllocation } from "@/lib/api/hooks";
 import { DevaPageHeader, StatTile, MeterBar, ADITYA } from "@/components/common/DevaScaffold";
+import { SkeletonRows } from "@/components/common/Skeleton";
+import { EmptyState } from "@/components/common/EmptyState";
 
 const DOMAIN_COLOR: Record<string, string> = {
   indra: "#4dc8c8",
@@ -31,9 +34,16 @@ export default function AmsumanPage() {
         <StatTile accent="#2ab870" label="Total Cost" value={`$${(data?.total_cost_usd ?? 0).toFixed(2)}`} />
       </div>
 
-      <div className="rounded-lg border border-hairline bg-surface-1 p-4">
+      <div className="rounded-lg border border-hairline bg-surface-1 p-4" style={{ borderTop: `2px solid ${ADITYA}` }}>
         {isLoading ? (
-          <div className="py-12 text-center text-sm text-ink-ghost">Computing shares…</div>
+          <SkeletonRows rows={5} />
+        ) : shares.length === 0 ? (
+          <EmptyState
+            icon={PieChart}
+            title="No shares to divide yet"
+            body="Once agents start spending tokens, each domain's portion of the finite token & cost wealth appears here."
+            accent={ADITYA}
+          />
         ) : (
           <ul className="space-y-4">
             {shares.map((s) => {
@@ -42,11 +52,11 @@ export default function AmsumanPage() {
                 <li key={s.domain}>
                   <div className="mb-1 flex items-center gap-2">
                     <span className="text-sm font-semibold uppercase tracking-wider" style={{ color }}>{s.domain}</span>
-                    <span className="font-mono text-[10px] text-ink-ghost">{s.agents} agents</span>
-                    <span className="ml-auto font-mono text-[12px] text-ink-secondary">{s.token_share_pct}%</span>
+                    <span className="font-mono tabular-nums text-[10px] text-ink-ghost">{s.agents} agents</span>
+                    <span className="ml-auto font-mono tabular-nums text-[12px] text-ink-secondary">{s.token_share_pct}%</span>
                   </div>
                   <MeterBar pct={s.token_share_pct} accent={color} />
-                  <div className="mt-1 flex justify-between font-mono text-[10px] text-ink-ghost">
+                  <div className="mt-1 flex justify-between font-mono tabular-nums text-[10px] text-ink-ghost">
                     <span>{s.tokens.toLocaleString()} tok</span>
                     <span>${s.cost_usd.toFixed(4)} · {s.cost_share_pct}% cost</span>
                   </div>

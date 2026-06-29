@@ -10,7 +10,11 @@ import {
   useMarkAllNotificationsRead,
   useDeleteNotification,
 } from "@/lib/api/hooks";
-import { DevaHeader, StatPill, DevaEmptyState, RUDRA } from "@/components/rudra/DevaHeader";
+import { DevaPageHeader, StatTile } from "@/components/common/DevaScaffold";
+import { EmptyState } from "@/components/common/EmptyState";
+import { SkeletonRows } from "@/components/common/Skeleton";
+
+const RUDRA = "#c44450";
 
 const SEV_COLOR: Record<string, string> = {
   critical: "#e04040",
@@ -30,10 +34,11 @@ export default function DevadattahPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <DevaHeader
+      <DevaPageHeader
+        accent={RUDRA}
         deva="Devadattah"
         role="Notifications"
-        title="The Herald"
+        title="Notification Center"
         sanskrit="देवदत्तः"
         description="the conch-breath that announces system events across the 33 Devas."
         actions={
@@ -49,8 +54,8 @@ export default function DevadattahPage() {
       />
 
       <div className="flex flex-wrap items-center gap-3">
-        <StatPill label="Total" value={stats?.total ?? 0} />
-        <StatPill label="Unread" value={stats?.unread ?? 0} accent="#e0a030" />
+        <StatTile label="Total" value={stats?.total ?? 0} accent={RUDRA} />
+        <StatTile label="Unread" value={stats?.unread ?? 0} accent={RUDRA} />
         <label className="ml-auto flex cursor-pointer select-none items-center gap-1.5 text-xs text-ink-ghost">
           <input
             type="checkbox"
@@ -62,14 +67,15 @@ export default function DevadattahPage() {
         </label>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-hairline bg-surface-1">
+      <div className="overflow-hidden rounded-lg border border-hairline bg-surface-1" style={{ borderTop: `2px solid ${RUDRA}` }}>
         {isLoading ? (
-          <div className="py-12 text-center text-sm text-ink-ghost">Loading notifications…</div>
+          <div className="p-4"><SkeletonRows rows={6} /></div>
         ) : notifications.length === 0 ? (
-          <DevaEmptyState
-            icon={<Inbox className="h-5 w-5" />}
+          <EmptyState
+            icon={Inbox}
             title={unreadOnly ? "No unread notifications" : "Inbox empty"}
-            hint="Devadattah delivers alerts, status changes, and escalations here as the system runs."
+            body="Devadattah delivers alerts, status changes, and escalations here as the system runs."
+            accent={RUDRA}
           />
         ) : (
           <ul className="divide-y divide-hairline">

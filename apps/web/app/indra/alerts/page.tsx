@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, CheckCheck, Trash2, AlertTriangle, Info, Zap } from "lucide-react";
+import { CheckCheck, Trash2, AlertTriangle, Info, Zap, ShieldCheck } from "lucide-react";
 import {
   useNotifications,
   useNotificationStats,
@@ -10,14 +10,18 @@ import {
 } from "@/lib/api/hooks";
 import type { Notification } from "@indra/types";
 import { useState } from "react";
+import { DevaPageHeader } from "@/components/common/DevaScaffold";
+import { MetricTile } from "@/components/metrics/MetricTile";
+import { SkeletonRows } from "@/components/common/Skeleton";
+import { EmptyState } from "@/components/common/EmptyState";
 
 const INDRA = "#4dc8c8";
 
 const LEVEL_DEFAULT = { color: "#3a80d4", Icon: Info, label: "Info" };
 const LEVEL_CONFIG: Record<string, { color: string; Icon: React.ElementType; label: string }> = {
   info: LEVEL_DEFAULT,
-  warning: { color: "#e0a030", Icon: AlertTriangle, label: "Warning" },
-  critical: { color: "#c44450", Icon: Zap, label: "Critical" },
+  warning: { color: "var(--state-degraded)", Icon: AlertTriangle, label: "Warning" },
+  critical: { color: "var(--state-critical)", Icon: Zap, label: "Critical" },
 };
 
 function NotifCard({ notif }: { notif: Notification }) {
@@ -28,38 +32,40 @@ function NotifCard({ notif }: { notif: Notification }) {
 
   return (
     <div
-      className="bg-surface-1 border rounded-lg p-4 flex items-start gap-3 transition-all"
+      className="flex items-start gap-3 rounded-lg border bg-surface-1 p-4 transition-all"
       style={{
-        borderColor: notif.is_read ? "var(--hairline)" : `${cfg.color}44`,
+        borderColor: notif.is_read
+          ? "var(--hairline)"
+          : `color-mix(in oklab, ${cfg.color} 30%, transparent)`,
         opacity: notif.is_read ? 0.7 : 1,
       }}
     >
       <Icon size={15} style={{ color: cfg.color }} className="mt-0.5 shrink-0" />
-      <div className="flex-1 min-w-0 space-y-1">
-        <div className="flex items-center gap-2 flex-wrap">
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
           <span
-            className="inline-flex px-1.5 py-0.5 rounded text-xs font-medium"
-            style={{ background: `${cfg.color}22`, color: cfg.color }}
+            className="inline-flex rounded px-1.5 py-0.5 text-xs font-medium"
+            style={{ background: `color-mix(in oklab, ${cfg.color} 14%, transparent)`, color: cfg.color }}
           >
             {cfg.label}
           </span>
           {notif.source_type && (
-            <span className="text-xs text-ink-ghost font-mono">{notif.source_type}</span>
+            <span className="font-mono text-xs text-ink-ghost">{notif.source_type}</span>
           )}
           {!notif.is_read && (
-            <span className="w-1.5 h-1.5 rounded-full ml-auto shrink-0" style={{ background: cfg.color }} />
+            <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: cfg.color }} />
           )}
         </div>
-        <p className="font-semibold text-ink-primary text-sm">{notif.title}</p>
+        <p className="text-sm font-semibold text-ink-primary">{notif.title}</p>
         {notif.message && <p className="text-xs text-ink-ghost">{notif.message}</p>}
-        <p className="text-xs text-ink-ghost font-mono">
+        <p className="font-mono text-xs tabular-nums text-ink-ghost">
           {new Date(notif.created_at).toLocaleString()}
         </p>
       </div>
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex shrink-0 items-center gap-1">
         {!notif.is_read && (
           <button
-            className="p-1.5 rounded hover:bg-surface-2 transition-colors"
+            className="rounded p-1.5 transition-colors hover:bg-surface-2"
             title="Mark read"
             onClick={() => markRead.mutate(notif.id)}
           >
@@ -67,7 +73,7 @@ function NotifCard({ notif }: { notif: Notification }) {
           </button>
         )}
         <button
-          className="p-1.5 rounded hover:bg-surface-2 transition-colors text-ink-ghost hover:text-red-400"
+          className="rounded p-1.5 text-ink-ghost transition-colors hover:bg-surface-2 hover:text-critical"
           onClick={() => del.mutate(notif.id)}
         >
           <Trash2 size={13} />
@@ -86,65 +92,66 @@ export default function AlertsPage() {
   const list = notifs?.notifications ?? [];
 
   return (
-    <div className="p-6 space-y-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="label-caps mb-1" style={{ color: INDRA }}>
-            INDRA · Alert Center
-          </p>
-          <h1
-            className="font-bold tracking-tight text-ink-primary"
-            style={{ fontSize: "28px", letterSpacing: "-0.8px" }}
-          >
-            Alerts
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            className="text-xs px-3 py-1.5 rounded border border-hairline hover:bg-surface-2 transition-colors"
-            style={unreadOnly ? { borderColor: INDRA, color: INDRA } : {}}
-            onClick={() => setUnreadOnly((v) => !v)}
-          >
-            {unreadOnly ? "Unread only" : "All alerts"}
-          </button>
-          {(stats?.unread ?? 0) > 0 && (
+    <div className="space-y-5 p-6">
+      <DevaPageHeader
+        accent={INDRA}
+        deva="Indra"
+        role="Notifications"
+        title="System Alerts"
+        sanskrit="इन्द्रः"
+        description="agent events and system warnings, ranked by severity."
+        actions={
+          <>
             <button
-              className="text-xs px-3 py-1.5 rounded border border-hairline hover:bg-surface-2 transition-colors"
-              onClick={() => markAll.mutate()}
-              disabled={markAll.isPending}
+              className="rounded border border-hairline px-3 py-1.5 text-xs transition-colors hover:bg-surface-2"
+              style={unreadOnly ? { borderColor: INDRA, color: INDRA } : {}}
+              onClick={() => setUnreadOnly((v) => !v)}
             >
-              <CheckCheck size={12} className="inline mr-1" />
-              Mark all read
+              {unreadOnly ? "Unread only" : "All alerts"}
             </button>
-          )}
-        </div>
-      </div>
+            {(stats?.unread ?? 0) > 0 && (
+              <button
+                className="rounded border border-hairline px-3 py-1.5 text-xs transition-colors hover:bg-surface-2"
+                onClick={() => markAll.mutate()}
+                disabled={markAll.isPending}
+              >
+                <CheckCheck size={12} className="mr-1 inline" />
+                Mark all read
+              </button>
+            )}
+          </>
+        }
+      />
 
       {/* Stats */}
       {stats && (
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: "Unread", value: stats.unread, color: stats.unread > 0 ? "#c44450" : "#637585" },
-            { label: "Total", value: stats.total, color: "#637585" },
-            { label: "Read", value: stats.total - stats.unread, color: "#2ab870" },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="bg-surface-1 border border-hairline rounded-lg p-4 text-center">
-              <p className="text-2xl font-bold" style={{ color }}>{value}</p>
-              <p className="label-caps text-ink-ghost mt-1">{label}</p>
-            </div>
-          ))}
+        <div className="grid grid-cols-3 gap-4">
+          <MetricTile
+            label="Unread"
+            value={stats.unread}
+            domain="indra"
+            valueColor={stats.unread > 0 ? "var(--state-critical)" : "var(--indra-ink-primary)"}
+          />
+          <MetricTile label="Total" value={stats.total} domain="indra" />
+          <MetricTile
+            label="Read"
+            value={stats.total - stats.unread}
+            domain="indra"
+            valueColor="var(--state-healthy)"
+          />
         </div>
       )}
 
       {/* Alert list */}
       {isLoading ? (
-        <div className="p-8 text-center text-ink-ghost label-caps">Loading…</div>
+        <SkeletonRows rows={5} height={84} />
       ) : list.length === 0 ? (
-        <div className="p-12 text-center text-ink-ghost">
-          <Bell size={32} className="mx-auto mb-3 opacity-30" />
-          <p className="label-caps">No alerts</p>
-          <p className="text-xs mt-1">Agent events and system warnings will appear here</p>
-        </div>
+        <EmptyState
+          icon={ShieldCheck}
+          accent={INDRA}
+          title="All clear"
+          body="No alerts right now. Agent events and system warnings will appear here as they fire."
+        />
       ) : (
         <div className="space-y-2">
           {list.map((n) => (

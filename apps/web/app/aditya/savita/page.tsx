@@ -4,6 +4,10 @@ import { useState } from "react";
 import { Clock, Play, Plus, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
 import { useSchedules, useCreateSchedule, useDeleteSchedule, useToggleSchedule, useTriggerSchedule } from "@/lib/api/hooks";
 import type { Schedule, TriggerType, ActionType } from "@indra/types";
+import { DevaPageHeader } from "@/components/common/DevaScaffold";
+import { SkeletonCards } from "@/components/common/Skeleton";
+import { EmptyState } from "@/components/common/EmptyState";
+import { KeyValueGrid } from "@/components/common/KeyValue";
 
 const ADITYA = "#3a80d4";
 
@@ -28,7 +32,10 @@ function ScheduleCard({ schedule }: { schedule: Schedule }) {
   const trigger = useTriggerSchedule();
 
   return (
-    <div className="bg-surface-1 border border-hairline rounded-lg p-4 space-y-2">
+    <div
+      className="bg-surface-1 border border-hairline rounded-lg p-4 space-y-2"
+      style={{ borderTop: "2px solid #3a80d4" }}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -65,14 +72,21 @@ function ScheduleCard({ schedule }: { schedule: Schedule }) {
         </div>
       </div>
 
-      <div className="font-mono text-xs text-ink-ghost bg-surface-2 rounded p-2 space-y-1">
-        <div>trigger: {JSON.stringify(schedule.trigger_config)}</div>
-        <div>action: {JSON.stringify(schedule.action_config)}</div>
+      <div className="space-y-2 rounded-md bg-surface-2 p-2.5">
+        <div>
+          <p className="label-caps text-ink-ghost mb-1">Trigger</p>
+          <KeyValueGrid data={schedule.trigger_config as Record<string, unknown>} />
+        </div>
+        <div>
+          <p className="label-caps text-ink-ghost mb-1">Action</p>
+          <KeyValueGrid data={schedule.action_config as Record<string, unknown>} />
+        </div>
       </div>
 
       {schedule.last_run_at && (
         <p className="text-xs text-ink-ghost">
-          Last run: {new Date(schedule.last_run_at).toLocaleString()}
+          Last run:{" "}
+          <span className="font-mono tabular-nums">{new Date(schedule.last_run_at).toLocaleString()}</span>
         </p>
       )}
     </div>
@@ -122,6 +136,7 @@ function AddScheduleModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
       <div
         className="bg-surface-1 border border-hairline rounded-xl p-6 w-full max-w-md space-y-4"
+        style={{ boxShadow: "var(--shadow-floating)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="font-bold text-ink-primary text-lg">New Schedule</h2>
@@ -201,37 +216,46 @@ export default function SavitaPage() {
 
   return (
     <div className="p-6 space-y-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="label-caps mb-1" style={{ color: ADITYA }}>
-            Savita · Scheduler
-          </p>
-          <h1
-            className="font-bold tracking-tight text-ink-primary"
-            style={{ fontSize: "28px", letterSpacing: "-0.8px" }}
-          >
-            Task Schedules
-          </h1>
-        </div>
-        <button className="btn-primary flex items-center gap-2" onClick={() => setAdding(true)}>
-          <Plus size={15} />
-          New Schedule
-        </button>
-      </div>
+      <DevaPageHeader
+        accent={ADITYA}
+        deva="Savita"
+        role="Scheduler"
+        title="Task Schedules"
+        sanskrit="सविता"
+        description="time-driven automation — what runs, and when."
+        actions={
+          <button className="btn-primary flex items-center gap-2" onClick={() => setAdding(true)}>
+            <Plus size={15} />
+            New Schedule
+          </button>
+        }
+      />
 
       {isLoading ? (
-        <div className="p-8 text-center text-ink-ghost label-caps">Loading…</div>
+        <SkeletonCards count={6} height={150} />
+      ) : (schedules ?? []).length === 0 ? (
+        <div
+          className="rounded-lg border border-hairline bg-surface-1"
+          style={{ borderTop: "2px solid #3a80d4" }}
+        >
+          <EmptyState
+            icon={Clock}
+            title="No schedules configured"
+            body="Schedules run actions on a timer — an interval, a cron expression, or a one-off. Create one to automate recurring work."
+            accent={ADITYA}
+            action={
+              <button className="btn-primary flex items-center gap-2" onClick={() => setAdding(true)}>
+                <Plus size={15} />
+                New Schedule
+              </button>
+            }
+          />
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {(schedules ?? []).map((s) => (
             <ScheduleCard key={s.id} schedule={s} />
           ))}
-          {(schedules ?? []).length === 0 && (
-            <div className="col-span-3 p-12 text-center text-ink-ghost">
-              <Clock size={32} className="mx-auto mb-3 opacity-30" />
-              <p className="label-caps">No schedules configured</p>
-            </div>
-          )}
         </div>
       )}
 

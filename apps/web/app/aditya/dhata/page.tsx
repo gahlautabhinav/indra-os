@@ -1,8 +1,10 @@
 "use client";
 
-import { Database, CheckCircle2 } from "lucide-react";
+import { Database, CheckCircle2, Layers } from "lucide-react";
 import { useFoundations } from "@/lib/api/hooks";
 import { DevaPageHeader, StatTile, ADITYA } from "@/components/common/DevaScaffold";
+import { SkeletonRows } from "@/components/common/Skeleton";
+import { EmptyState } from "@/components/common/EmptyState";
 
 export default function DhataPage() {
   const { data, isLoading } = useFoundations();
@@ -28,10 +30,17 @@ export default function DhataPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <div className="rounded-lg border border-hairline bg-surface-1 p-4">
+        <div className="rounded-lg border border-hairline bg-surface-1 p-4" style={{ borderTop: `2px solid ${ADITYA}` }}>
           <p className="mb-3 text-[10px] uppercase tracking-wider text-ink-ghost">Persisted entities</p>
           {isLoading ? (
-            <div className="py-8 text-center text-sm text-ink-ghost">Surveying foundations…</div>
+            <SkeletonRows rows={6} height={20} />
+          ) : entities.length === 0 ? (
+            <EmptyState
+              icon={Layers}
+              title="No entities persisted yet"
+              body="As the system writes rows, each table's footprint shows up here."
+              accent={ADITYA}
+            />
           ) : (
             <ul className="space-y-2.5">
               {entities.map((e) => (
@@ -47,7 +56,7 @@ export default function DhataPage() {
           )}
         </div>
 
-        <div className="rounded-lg border border-hairline bg-surface-1 p-4">
+        <div className="rounded-lg border border-hairline bg-surface-1 p-4" style={{ borderTop: `2px solid ${ADITYA}` }}>
           <p className="mb-3 text-[10px] uppercase tracking-wider text-ink-ghost">Infrastructure</p>
           <div className="space-y-3">
             <div className="flex items-center gap-2">

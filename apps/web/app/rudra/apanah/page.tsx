@@ -3,7 +3,11 @@
 import { Trash2, Wind, Recycle } from "lucide-react";
 import type { Agent } from "@indra/types";
 import { useAgents, useCleanupAgent } from "@/lib/api/hooks";
-import { DevaHeader, StatPill, DevaEmptyState, RUDRA } from "@/components/rudra/DevaHeader";
+import { DevaPageHeader, StatTile } from "@/components/common/DevaScaffold";
+import { EmptyState } from "@/components/common/EmptyState";
+import { SkeletonRows } from "@/components/common/Skeleton";
+
+const RUDRA = "#c44450";
 
 // Agents that have finished their lifecycle and can have resources reclaimed.
 const RECLAIMABLE = new Set(["dead", "completed", "error"]);
@@ -17,27 +21,29 @@ export default function ApanahPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <DevaHeader
+      <DevaPageHeader
+        accent={RUDRA}
         deva="Apanah"
-        role="Cleanup · Resource Reclamation"
-        title="The Downward Breath"
+        role="Cleanup"
+        title="Cleanup Console"
         sanskrit="अपानः"
         description="the eliminating current that reclaims spent agents and frees their resources."
       />
 
       <div className="flex flex-wrap gap-3">
-        <StatPill label="Total Agents" value={agents.length} />
-        <StatPill label="Reclaimable" value={reclaimable.length} accent="#e0a030" />
+        <StatTile label="Total Agents" value={agents.length} accent={RUDRA} />
+        <StatTile label="Reclaimable" value={reclaimable.length} accent={RUDRA} />
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-hairline bg-surface-1">
+      <div className="overflow-hidden rounded-lg border border-hairline bg-surface-1" style={{ borderTop: `2px solid ${RUDRA}` }}>
         {isLoading ? (
-          <div className="py-12 text-center text-sm text-ink-ghost">Loading agents…</div>
+          <div className="p-4"><SkeletonRows rows={6} /></div>
         ) : reclaimable.length === 0 ? (
-          <DevaEmptyState
-            icon={<Recycle className="h-5 w-5" />}
+          <EmptyState
+            icon={Recycle}
             title="Nothing to reclaim"
-            hint="Apanah lists finished, dead, or errored agents whose resources can be freed. None right now."
+            body="Apanah lists finished, dead, or errored agents whose resources can be freed. None right now."
+            accent={RUDRA}
           />
         ) : (
           <table className="w-full text-sm">

@@ -1,7 +1,10 @@
 "use client";
 
+import { Layers } from "lucide-react";
 import { useContextWindows } from "@/lib/api/hooks";
 import { DevaPageHeader, StatTile, MeterBar, VASU } from "@/components/common/DevaScaffold";
+import { SkeletonRows } from "@/components/common/Skeleton";
+import { EmptyState } from "@/components/common/EmptyState";
 
 const PRESSURE_COLOR: Record<string, string> = {
   healthy: "#2ab870",
@@ -35,18 +38,28 @@ export default function AkasahPage() {
         />
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-hairline bg-surface-1">
+      <div
+        className="overflow-hidden rounded-lg border border-hairline bg-surface-1"
+        style={{ borderTop: `2px solid ${VASU}` }}
+      >
         {isLoading ? (
-          <div className="py-12 text-center text-sm text-ink-ghost">Measuring context windows…</div>
+          <div className="p-3">
+            <SkeletonRows rows={6} height={56} />
+          </div>
         ) : windows.length === 0 ? (
-          <div className="py-16 text-center text-sm text-ink-ghost">No active sessions to measure.</div>
+          <EmptyState
+            icon={Layers}
+            accent={VASU}
+            title="No active context windows"
+            body="Each live agent session reserves a finite token-space. Active windows and their fill-pressure appear here as sessions run."
+          />
         ) : (
           <ul className="divide-y divide-hairline">
             {windows.map((w) => {
               const color = PRESSURE_COLOR[w.pressure] ?? "#637585";
               const project = w.project_path?.split(/[\\/]/).pop() ?? w.plugin_type;
               return (
-                <li key={w.session_id} className="px-4 py-3">
+                <li key={w.session_id} className="px-4 py-3 transition-colors hover:bg-surface-2">
                   <div className="mb-1.5 flex items-center gap-2">
                     <span className="text-sm text-ink-secondary">{project}</span>
                     <span className="font-mono text-[10px] text-ink-ghost">{w.plugin_type}</span>
@@ -55,7 +68,7 @@ export default function AkasahPage() {
                     </span>
                   </div>
                   <MeterBar pct={w.used_pct} accent={color} />
-                  <div className="mt-1 flex justify-between font-mono text-[10px] text-ink-ghost">
+                  <div className="mt-1 flex justify-between font-mono text-[10px] tabular-nums text-ink-ghost">
                     <span>{w.tokens_used.toLocaleString()} tok</span>
                     <span>{w.used_pct}% of {(w.context_window / 1000).toFixed(0)}k</span>
                   </div>

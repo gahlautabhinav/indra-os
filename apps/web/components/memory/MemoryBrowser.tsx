@@ -57,10 +57,7 @@ function ChunkCard({
   const [confirming, setConfirming] = useState(false);
 
   return (
-    <div
-      className="rounded-[8px] border border-hairline bg-surface-1 p-3 group hover:bg-surface-2 transition-colors"
-      style={{ borderLeft: `2px solid ${ADITYA}` }}
-    >
+    <div className="group rounded-[8px] border border-hairline bg-surface-1 p-3 transition-colors hover:bg-surface-2">
       <div className="flex items-start gap-3">
         {/* Content */}
         <div className="flex-1 min-w-0">
@@ -180,7 +177,7 @@ function IngestPanel({ onSuccess }: { onSuccess: () => void }) {
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="Paste content to store as a memory chunk. If an OpenAI API key is configured, it will be embedded for semantic search."
+          placeholder="Paste content to store as a memory chunk — it's embedded locally (model2vec) for semantic search."
           className="w-full rounded-[6px] border border-hairline bg-surface-2 px-3 py-2 text-sm text-ink-primary placeholder:text-ink-ghost resize-none focus:outline-none focus:ring-1 focus:ring-[#3a80d4]/50"
           rows={5}
         />
@@ -343,7 +340,7 @@ export function MemoryBrowser() {
               className="font-mono text-sm"
               style={{ color: stats?.embedding_enabled ? "#2ab870" : "#637585" }}
             >
-              {stats?.embedding_enabled ? "OpenAI" : "Disabled"}
+              {stats?.embedding_enabled ? "Local" : "Disabled"}
             </span>
           </span>
         </div>
@@ -422,7 +419,7 @@ export function MemoryBrowser() {
         <div className="p-3 space-y-2" style={{ maxHeight: "500px", overflowY: "auto" }}>
           {chunksLoading && !isSearchMode ? (
             Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-20 rounded-[6px] bg-surface-2 animate-pulse" />
+              <div key={i} className="skeleton h-20 rounded-[6px]" />
             ))
           ) : displayChunks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">

@@ -4,22 +4,11 @@ import { useState } from "react";
 import { Radio, RefreshCw, Send, X } from "lucide-react";
 import type { StreamInfo } from "@indra/types";
 import { useStreams, useStreamEvents, usePublishToStream } from "@/lib/api/hooks";
+import { DevaPageHeader, StatTile } from "@/components/common/DevaScaffold";
+import { SkeletonRows } from "@/components/common/Skeleton";
+import { EmptyState } from "@/components/common/EmptyState";
 
 const ACCENT = "#d4843a";
-
-function StatChip({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div
-      className="flex flex-col gap-0.5 px-4 py-2.5 rounded-[6px] border border-hairline bg-surface-2 min-w-[100px]"
-      style={{ borderTop: `2px solid ${ACCENT}` }}
-    >
-      <span className="label-caps text-ink-ghost">{label}</span>
-      <span className="font-mono font-bold tabular-nums text-ink-primary" style={{ fontSize: "20px", lineHeight: 1 }}>
-        {value}
-      </span>
-    </div>
-  );
-}
 
 function PublishModal({
   stream,
@@ -43,11 +32,11 @@ function PublishModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-canvas/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <form
         onSubmit={submit}
-        className="relative rounded-[12px] border border-hairline bg-surface-1 w-full max-w-md p-6 shadow-xl"
-        style={{ borderTop: `2px solid ${ACCENT}` }}
+        className="relative rounded-xl border border-hairline bg-surface-1 w-full max-w-md p-6"
+        style={{ borderTop: `2px solid ${ACCENT}`, boxShadow: "var(--shadow-floating)" }}
       >
         <div className="flex items-center justify-between mb-5">
           <div>
@@ -122,44 +111,40 @@ export default function ApahPage() {
       )}
 
       {/* Header */}
-      <div>
-        <p className="label-caps mb-1" style={{ color: ACCENT }}>
-          Āpaḥ · Event Bus
-        </p>
-        <h1 className="font-bold tracking-tight text-ink-primary" style={{ fontSize: "28px", letterSpacing: "-0.8px" }}>
-          Redis Event Streams
-        </h1>
-        <p className="mt-1 text-sm text-ink-tertiary">
-          Live XREVRANGE view of all INDRA event streams
-        </p>
-      </div>
+      <DevaPageHeader
+        accent={ACCENT}
+        deva="Āpaḥ"
+        role="Event Streams"
+        title="Data Flow"
+        sanskrit="आपः"
+        description="live XREVRANGE view of every INDRA Redis event stream."
+        actions={
+          <>
+            <button
+              onClick={() => void refetch()}
+              className="flex items-center gap-1.5 label-caps px-3 py-2 rounded border border-hairline hover:border-hairline-bright transition-colors text-ink-ghost hover:text-ink-secondary"
+            >
+              <RefreshCw className="w-3 h-3" />
+              Refresh
+            </button>
+            {selectedStream && (
+              <button
+                onClick={() => setShowPublish(true)}
+                className="flex items-center gap-1.5 label-caps px-3 py-2 rounded border border-hairline hover:border-hairline-bright transition-colors"
+                style={{ color: ACCENT }}
+              >
+                <Send className="w-3 h-3" />
+                Publish
+              </button>
+            )}
+          </>
+        }
+      />
 
       {/* Stats */}
       <div className="flex items-start gap-3 flex-wrap">
-        <StatChip label="Streams" value={streams.length} />
-        <StatChip
-          label="Selected Events"
-          value={eventsData?.total ?? "—"}
-        />
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={() => void refetch()}
-            className="flex items-center gap-1.5 label-caps px-3 py-2 rounded border border-hairline hover:border-hairline-bright transition-colors text-ink-ghost hover:text-ink-secondary"
-          >
-            <RefreshCw className="w-3 h-3" />
-            Refresh
-          </button>
-          {selectedStream && (
-            <button
-              onClick={() => setShowPublish(true)}
-              className="flex items-center gap-1.5 label-caps px-3 py-2 rounded border border-hairline hover:border-hairline-bright transition-colors"
-              style={{ color: ACCENT }}
-            >
-              <Send className="w-3 h-3" />
-              Publish
-            </button>
-          )}
-        </div>
+        <StatTile accent={ACCENT} label="Streams" value={streams.length} />
+        <StatTile accent={ACCENT} label="Selected Events" value={eventsData?.total ?? "—"} />
       </div>
 
       {/* Split: stream list + event viewer */}
@@ -170,20 +155,18 @@ export default function ApahPage() {
           style={{ borderTop: `2px solid ${ACCENT}` }}
         >
           <div className="px-4 py-2.5 border-b border-hairline bg-surface-2">
-            <span className="label-caps text-ink-ghost">Streams</span>
+            <span className="label-caps text-ink-tertiary">Streams</span>
           </div>
           <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 380px)" }}>
             {streamsLoading ? (
-              <div className="p-3 space-y-2">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="h-10 rounded bg-surface-2 animate-pulse" />
-                ))}
-              </div>
+              <SkeletonRows rows={5} height={40} className="p-3" />
             ) : !streams.length ? (
-              <div className="flex flex-col items-center justify-center py-10 gap-2">
-                <Radio className="w-6 h-6 text-ink-ghost opacity-30" />
-                <p className="text-xs text-ink-ghost">No streams found</p>
-              </div>
+              <EmptyState
+                icon={Radio}
+                accent={ACCENT}
+                title="No streams yet"
+                body="Event streams appear here once agents and plugins publish to the INDRA Redis bus."
+              />
             ) : (
               streams.map((s: StreamInfo) => (
                 <button
@@ -192,11 +175,10 @@ export default function ApahPage() {
                   className={`w-full flex items-center justify-between gap-2 px-4 py-3 text-left border-b border-hairline last:border-0 transition-colors ${
                     selectedStream === s.name ? "bg-surface-3" : "hover:bg-surface-2"
                   }`}
-                  style={selectedStream === s.name ? { borderLeft: `2px solid ${ACCENT}` } : {}}
                 >
                   <span className="text-[11px] font-mono text-ink-secondary truncate">{s.name}</span>
                   <span
-                    className="text-[10px] font-mono shrink-0 px-1.5 py-0.5 rounded"
+                    className="text-[10px] font-mono tabular-nums shrink-0 px-1.5 py-0.5 rounded"
                     style={{ color: ACCENT, backgroundColor: `${ACCENT}18` }}
                   >
                     {s.length}
@@ -213,7 +195,7 @@ export default function ApahPage() {
           style={{ borderTop: `2px solid ${ACCENT}` }}
         >
           <div className="px-4 py-2.5 border-b border-hairline bg-surface-2 flex items-center gap-2">
-            <span className="label-caps text-ink-ghost flex-1">
+            <span className="label-caps text-ink-tertiary flex-1">
               {selectedStream ? "Events" : "Select a stream"}
             </span>
             {selectedStream && (
@@ -223,20 +205,21 @@ export default function ApahPage() {
 
           <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 380px)", minHeight: "300px" }}>
             {!selectedStream ? (
-              <div className="flex flex-col items-center justify-center py-16 gap-2">
-                <Radio className="w-8 h-8 text-ink-ghost opacity-20" />
-                <p className="label-caps text-ink-ghost">Select a stream</p>
-              </div>
+              <EmptyState
+                icon={Radio}
+                accent={ACCENT}
+                title="Select a stream"
+                body="Pick a stream on the left to tail its most recent events live."
+              />
             ) : eventsLoading ? (
-              <div className="p-4 space-y-2">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="h-16 rounded bg-surface-2 animate-pulse" />
-                ))}
-              </div>
+              <SkeletonRows rows={6} height={64} className="p-4" />
             ) : !events.length ? (
-              <div className="flex flex-col items-center justify-center py-12 gap-2">
-                <p className="text-sm text-ink-ghost">No events in this stream</p>
-              </div>
+              <EmptyState
+                icon={Radio}
+                accent={ACCENT}
+                title="No events in this stream"
+                body="Publish an event or wait for agents to emit one — new entries surface at the top."
+              />
             ) : (
               events.map((ev) => (
                 <div
@@ -244,8 +227,8 @@ export default function ApahPage() {
                   className="px-4 py-3 border-b border-hairline last:border-0 hover:bg-surface-2 transition-colors"
                 >
                   <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-[10px] font-mono text-ink-ghost">{timeFromMs(ev.timestamp_ms)}</span>
-                    <span className="text-[10px] font-mono text-ink-ghost opacity-50">{ev.id}</span>
+                    <span className="text-[10px] font-mono tabular-nums text-ink-ghost">{timeFromMs(ev.timestamp_ms)}</span>
+                    <span className="text-[10px] font-mono tabular-nums text-ink-ghost opacity-50">{ev.id}</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(ev.data).map(([k, v]) => (

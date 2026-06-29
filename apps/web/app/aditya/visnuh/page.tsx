@@ -1,7 +1,10 @@
 "use client";
 
+import { Globe } from "lucide-react";
 import { usePervasionOverview } from "@/lib/api/hooks";
 import { DevaPageHeader, StatTile, MeterBar, ADITYA } from "@/components/common/DevaScaffold";
+import { SkeletonRows } from "@/components/common/Skeleton";
+import { EmptyState } from "@/components/common/EmptyState";
 
 const DOMAIN_COLOR: Record<string, string> = {
   indra: "#4dc8c8",
@@ -33,10 +36,17 @@ export default function VisnuhPage() {
         <StatTile accent="#4dc8c8" label="Sessions" value={data?.total_sessions ?? 0} />
       </div>
 
-      <div className="rounded-lg border border-hairline bg-surface-1 p-4">
+      <div className="rounded-lg border border-hairline bg-surface-1 p-4" style={{ borderTop: `2px solid ${ADITYA}` }}>
         <p className="mb-3 text-[10px] uppercase tracking-wider text-ink-ghost">Reach by domain</p>
         {isLoading ? (
-          <div className="py-8 text-center text-sm text-ink-ghost">Measuring pervasion…</div>
+          <SkeletonRows rows={5} />
+        ) : reach.length === 0 ? (
+          <EmptyState
+            icon={Globe}
+            title="No reach recorded yet"
+            body="As agents activate across domains, each domain's spread appears here."
+            accent={ADITYA}
+          />
         ) : (
           <ul className="space-y-4">
             {reach.map((r) => {
@@ -45,7 +55,7 @@ export default function VisnuhPage() {
                 <li key={r.domain}>
                   <div className="mb-1 flex items-center gap-2">
                     <span className="text-sm font-semibold uppercase tracking-wider" style={{ color }}>{r.domain}</span>
-                    <span className="ml-auto font-mono text-[12px] text-ink-secondary">
+                    <span className="ml-auto font-mono tabular-nums text-[12px] text-ink-secondary">
                       {r.active_agents}/{r.agents} active
                     </span>
                   </div>

@@ -1,9 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { Activity } from "lucide-react";
 import { useTraceStats, useTraces, useTrace } from "@/lib/api/hooks";
 import { VivartaTrace } from "@/components/traces/VivartaTrace";
+import { DevaPageHeader, StatTile } from "@/components/common/DevaScaffold";
+import { SkeletonRows } from "@/components/common/Skeleton";
+import { EmptyState } from "@/components/common/EmptyState";
 import type { Trace } from "@indra/types";
+
+const ACCENT = "#d4843a";
 
 // ── Time-range filter tabs ────────────────────────────────────────────────
 
@@ -19,34 +25,7 @@ const STATUSES = [
   { value: "error",    label: "Error" },
 ] as const;
 
-// ── Metric strip ──────────────────────────────────────────────────────────
-
-function StatChip({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: string | number;
-  color?: string;
-}) {
-  return (
-    <div
-      className="flex flex-col gap-0.5 px-4 py-2.5 rounded-[6px] border border-hairline bg-surface-2 min-w-[120px]"
-      style={{ borderTop: "2px solid #d4843a" }}
-    >
-      <span className="label-caps text-ink-ghost">{label}</span>
-      <span
-        className="font-mono font-bold tabular-nums"
-        style={{ fontSize: "24px", lineHeight: 1, color: color ?? "#e8eef4" }}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
-
-// ── Status dot ────────────────────────────────────────────────────────────
+// ── Status dot (live pulse on running) ─────────────────────────────────────
 
 function StatusDot({ status }: { status: string | null | undefined }) {
   const color =
@@ -54,6 +33,14 @@ function StatusDot({ status }: { status: string | null | undefined }) {
     status === "error"   ? "#e04040" :
     status === "running" ? "#4dc8c8" :
     "#637585";
+  if (status === "running") {
+    return (
+      <span className="relative inline-flex h-1.5 w-1.5 shrink-0">
+        <span className="live-ring absolute inset-0 rounded-full" style={{ background: `${color}99` }} />
+        <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ background: color }} />
+      </span>
+    );
+  }
   return (
     <span
       className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
@@ -79,12 +66,11 @@ function TraceRow({
       className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors border-b border-hairline last:border-0 ${
         selected ? "bg-surface-3" : "hover:bg-surface-2/60"
       }`}
-      style={selected ? { borderLeft: "2px solid #d4843a" } : {}}
     >
       <StatusDot status={trace.status} />
 
       {/* Trace ID */}
-      <span className="font-mono text-ink-ghost shrink-0" style={{ fontSize: "10px", width: "72px" }}>
+      <span className="font-mono tabular-nums text-ink-ghost shrink-0" style={{ fontSize: "10px", width: "72px" }}>
         {trace.trace_id.slice(0, 8)}…
       </span>
 
@@ -94,7 +80,7 @@ function TraceRow({
       </span>
 
       {/* Span count */}
-      <span className="font-mono text-ink-ghost shrink-0" style={{ fontSize: "11px" }}>
+      <span className="font-mono tabular-nums text-ink-ghost shrink-0" style={{ fontSize: "11px" }}>
         {trace.span_count ?? 0} spans
       </span>
 
@@ -108,7 +94,7 @@ function TraceRow({
       </span>
 
       {/* Timestamp */}
-      <span className="font-mono text-ink-ghost shrink-0" style={{ fontSize: "10px" }}>
+      <span className="font-mono tabular-nums text-ink-ghost shrink-0" style={{ fontSize: "10px" }}>
         {trace.started_at
           ? new Date(trace.started_at).toLocaleTimeString()
           : "—"}
@@ -136,38 +122,22 @@ export default function SuryahPage() {
   return (
     <div className="p-6 space-y-5">
       {/* Page header */}
-      <div>
-        <p className="label-caps mb-1" style={{ color: "#d4843a" }}>
-          Sūryaḥ · Observability
-        </p>
-        <h1
-          className="font-bold tracking-tight text-ink-primary"
-          style={{ fontSize: "28px", letterSpacing: "-0.8px" }}
-        >
-          Trace Center
-        </h1>
-        <p className="mt-1 text-sm text-ink-tertiary">
-          Vivarta — the unfolding of every agent execution
-        </p>
-      </div>
+      <DevaPageHeader
+        accent={ACCENT}
+        deva="Sūryaḥ"
+        role="Observability"
+        title="Traces"
+        sanskrit="सूर्यः"
+        description="Vivarta — the unfolding of every agent execution as spans."
+      />
 
       {/* Stats strip */}
       <div className="flex items-start gap-3 flex-wrap">
-        <StatChip
-          label="Total Traces"
-          value={statsLoading ? "—" : (stats?.total_traces ?? 0)}
-        />
-        <StatChip
-          label="Active"
-          value={statsLoading ? "—" : (stats?.active_traces ?? 0)}
-          color="#4dc8c8"
-        />
-        <StatChip
-          label="Errors"
-          value={statsLoading ? "—" : (stats?.error_traces ?? 0)}
-          color={stats?.error_traces ? "#e04040" : "#637585"}
-        />
-        <StatChip
+        <StatTile accent={ACCENT} label="Total Traces" value={statsLoading ? "—" : (stats?.total_traces ?? 0)} />
+        <StatTile accent={ACCENT} label="Active" value={statsLoading ? "—" : (stats?.active_traces ?? 0)} />
+        <StatTile accent={ACCENT} label="Errors" value={statsLoading ? "—" : (stats?.error_traces ?? 0)} />
+        <StatTile
+          accent={ACCENT}
           label="Avg Duration"
           value={
             statsLoading
@@ -179,7 +149,8 @@ export default function SuryahPage() {
               : "—"
           }
         />
-        <StatChip
+        <StatTile
+          accent={ACCENT}
           label="P50"
           value={
             statsLoading
@@ -228,7 +199,7 @@ export default function SuryahPage() {
         </div>
 
         {/* Total count */}
-        <span className="font-mono text-ink-ghost ml-auto" style={{ fontSize: "11px" }}>
+        <span className="font-mono tabular-nums text-ink-ghost ml-auto" style={{ fontSize: "11px" }}>
           {tracesData?.total ?? 0} traces
         </span>
       </div>
@@ -236,39 +207,25 @@ export default function SuryahPage() {
       {/* Split: list (left) + waterfall detail (right) */}
       <div className="grid gap-4" style={{ gridTemplateColumns: "340px 1fr" }}>
         {/* Trace list */}
-        <div className="rounded-[12px] border border-hairline bg-surface-1 overflow-hidden" style={{ borderTop: "2px solid #d4843a" }}>
+        <div className="rounded-[12px] border border-hairline bg-surface-1 overflow-hidden" style={{ borderTop: `2px solid ${ACCENT}` }}>
           {/* List header */}
           <div className="flex items-center px-4 py-2.5 border-b border-hairline bg-surface-2 gap-2">
-            <span className="label-caps text-ink-ghost flex-1">Trace</span>
-            <span className="label-caps text-ink-ghost">Spans</span>
-            <span className="label-caps text-ink-ghost w-14 text-right">Duration</span>
+            <span className="label-caps text-ink-tertiary flex-1">Trace</span>
+            <span className="label-caps text-ink-tertiary">Spans</span>
+            <span className="label-caps text-ink-tertiary w-14 text-right">Duration</span>
           </div>
 
           {/* List body */}
           <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 380px)", minHeight: "300px" }}>
             {tracesLoading ? (
-              <div className="space-y-px p-2">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="h-11 rounded bg-surface-2 animate-pulse" />
-                ))}
-              </div>
+              <SkeletonRows rows={8} height={44} className="p-2" />
             ) : traces.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-                <div
-                  className="w-12 h-12 rounded-full mb-3 flex items-center justify-center"
-                  style={{ background: "rgba(212,132,58,0.12)" }}
-                >
-                  <span style={{ color: "#d4843a", fontSize: "20px" }}>◎</span>
-                </div>
-                <p className="label-caps text-ink-ghost mb-1">No Traces</p>
-                <p className="text-xs text-ink-tertiary">
-                  Traces appear when agents run. Use{" "}
-                  <code className="font-mono text-[10px] text-ink-secondary">
-                    POST /api/v1/traces/ingest
-                  </code>{" "}
-                  to submit spans.
-                </p>
-              </div>
+              <EmptyState
+                icon={Activity}
+                accent={ACCENT}
+                title="No traces yet"
+                body="Traces appear when agents run. POST spans to /api/v1/traces/ingest to populate the waterfall."
+              />
             ) : (
               traces.map((t) => (
                 <TraceRow
@@ -289,29 +246,22 @@ export default function SuryahPage() {
         {/* Waterfall detail */}
         <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 300px)" }}>
           {!selectedTraceId ? (
-            <div
-              className="h-full rounded-[12px] border border-hairline border-dashed bg-surface-1 flex flex-col items-center justify-center gap-2 min-h-[300px]"
-            >
-              <span style={{ color: "#d4843a", fontSize: "32px", opacity: 0.3 }}>◎</span>
-              <p className="label-caps text-ink-ghost">Select a trace</p>
-              <p className="text-xs text-ink-tertiary">
-                Click any trace to see the Vivarta waterfall
-              </p>
+            <div className="h-full rounded-[12px] border border-dashed border-hairline bg-surface-1 min-h-[300px]">
+              <EmptyState
+                icon={Activity}
+                accent={ACCENT}
+                title="Select a trace"
+                body="Click any trace to unfold its Vivarta waterfall — every span, timing and status."
+              />
             </div>
           ) : traceLoading ? (
-            <div className="rounded-[12px] border border-hairline bg-surface-1 p-6 space-y-2" style={{ borderTop: "2px solid #d4843a" }}>
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-8 rounded bg-surface-2 animate-pulse"
-                  style={{ width: `${90 - i * 8}%` }}
-                />
-              ))}
+            <div className="rounded-[12px] border border-hairline bg-surface-1 p-6" style={{ borderTop: `2px solid ${ACCENT}` }}>
+              <SkeletonRows rows={6} height={32} />
             </div>
           ) : selectedTrace ? (
             <VivartaTrace trace={selectedTrace} />
           ) : (
-            <div className="rounded-[12px] border border-hairline bg-surface-1 p-6 text-center" style={{ borderTop: "2px solid #d4843a" }}>
+            <div className="rounded-[12px] border border-hairline bg-surface-1 p-6 text-center" style={{ borderTop: `2px solid ${ACCENT}` }}>
               <p className="text-sm text-ink-tertiary">Trace not found</p>
             </div>
           )}

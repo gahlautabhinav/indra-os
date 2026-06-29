@@ -12,6 +12,8 @@ import {
   useCreateKnowledgeEdge,
   useDeleteKnowledgeEdge,
 } from "@/lib/api/hooks";
+import { DevaPageHeader, StatTile } from "@/components/common/DevaScaffold";
+import { EmptyState } from "@/components/common/EmptyState";
 
 const ACCENT = "#d4843a";
 
@@ -24,20 +26,6 @@ const ENTITY_COLORS: Record<string, string> = {
   mcp_server: "#9a44d4",
   custom: "#637585",
 };
-
-function StatChip({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div
-      className="flex flex-col gap-0.5 px-4 py-2.5 rounded-[6px] border border-hairline bg-surface-2 min-w-[100px]"
-      style={{ borderTop: `2px solid ${ACCENT}` }}
-    >
-      <span className="label-caps text-ink-ghost">{label}</span>
-      <span className="font-mono font-bold tabular-nums text-ink-primary" style={{ fontSize: "22px", lineHeight: 1 }}>
-        {value}
-      </span>
-    </div>
-  );
-}
 
 function AddNodeModal({ onClose }: { onClose: () => void }) {
   const [entityType, setEntityType] = useState("custom");
@@ -62,11 +50,11 @@ function AddNodeModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-canvas/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <form
         onSubmit={submit}
-        className="relative rounded-[12px] border border-hairline bg-surface-1 w-full max-w-md p-6 shadow-xl"
-        style={{ borderTop: `2px solid ${ACCENT}` }}
+        className="relative rounded-xl border border-hairline bg-surface-1 w-full max-w-md p-6"
+        style={{ borderTop: `2px solid ${ACCENT}`, boxShadow: "var(--shadow-floating)" }}
       >
         <div className="flex items-center justify-between mb-5">
           <span className="label-caps" style={{ color: ACCENT }}>Add Knowledge Node</span>
@@ -157,11 +145,11 @@ function AddEdgeModal({ nodes, onClose }: { nodes: KnowledgeNode[]; onClose: () 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-canvas/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <form
         onSubmit={submit}
-        className="relative rounded-[12px] border border-hairline bg-surface-1 w-full max-w-md p-6 shadow-xl"
-        style={{ borderTop: `2px solid ${ACCENT}` }}
+        className="relative rounded-xl border border-hairline bg-surface-1 w-full max-w-md p-6"
+        style={{ borderTop: `2px solid ${ACCENT}`, boxShadow: "var(--shadow-floating)" }}
       >
         <div className="flex items-center justify-between mb-5">
           <span className="label-caps" style={{ color: ACCENT }}>Add Knowledge Edge</span>
@@ -255,54 +243,51 @@ export default function NaksatraniPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="label-caps mb-1" style={{ color: ACCENT }}>
-            Nakṣatrāṇi · Knowledge Graph
-          </p>
-          <h1 className="font-bold tracking-tight text-ink-primary" style={{ fontSize: "28px", letterSpacing: "-0.8px" }}>
-            Entity Graph
-          </h1>
-          <p className="mt-1 text-sm text-ink-tertiary">
-            The constellation of CLIs, projects and agent sessions — and how they connect across tools
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => sync.mutate()}
-            disabled={sync.isPending}
-            className="flex items-center gap-1.5 label-caps px-3 py-2 rounded border border-hairline hover:border-hairline-bright transition-colors text-ink-ghost hover:text-ink-secondary"
-          >
-            <RefreshCw className={`w-3 h-3 ${sync.isPending ? "animate-spin" : ""}`} />
-            {sync.isPending ? "Syncing…" : "Sync Agents"}
-          </button>
-          <button
-            onClick={() => setShowAddNode(true)}
-            className="flex items-center gap-1.5 label-caps px-3 py-2 rounded border border-hairline hover:border-hairline-bright transition-colors"
-            style={{ color: ACCENT }}
-          >
-            <Plus className="w-3 h-3" />
-            Node
-          </button>
-          {nodes.length >= 2 && (
+      <DevaPageHeader
+        accent={ACCENT}
+        deva="Nakṣatrāṇi"
+        role="Knowledge Graph"
+        title="Knowledge Graph"
+        sanskrit="नक्षत्राणि"
+        description="the constellation of CLIs, projects and agent sessions — and how they connect."
+        actions={
+          <>
             <button
-              onClick={() => setShowAddEdge(true)}
+              onClick={() => sync.mutate()}
+              disabled={sync.isPending}
+              className="flex items-center gap-1.5 label-caps px-3 py-2 rounded border border-hairline hover:border-hairline-bright transition-colors text-ink-ghost hover:text-ink-secondary"
+            >
+              <RefreshCw className={`w-3 h-3 ${sync.isPending ? "animate-spin" : ""}`} />
+              {sync.isPending ? "Syncing…" : "Sync Agents"}
+            </button>
+            <button
+              onClick={() => setShowAddNode(true)}
               className="flex items-center gap-1.5 label-caps px-3 py-2 rounded border border-hairline hover:border-hairline-bright transition-colors"
               style={{ color: ACCENT }}
             >
               <Plus className="w-3 h-3" />
-              Edge
+              Node
             </button>
-          )}
-        </div>
-      </div>
+            {nodes.length >= 2 && (
+              <button
+                onClick={() => setShowAddEdge(true)}
+                className="flex items-center gap-1.5 label-caps px-3 py-2 rounded border border-hairline hover:border-hairline-bright transition-colors"
+                style={{ color: ACCENT }}
+              >
+                <Plus className="w-3 h-3" />
+                Edge
+              </button>
+            )}
+          </>
+        }
+      />
 
       {/* Stats */}
       <div className="flex items-start gap-3 flex-wrap">
-        <StatChip label="Nodes" value={graph?.node_count ?? "—"} />
-        <StatChip label="Edges" value={graph?.edge_count ?? "—"} />
+        <StatTile accent={ACCENT} label="Nodes" value={graph?.node_count ?? "—"} />
+        <StatTile accent={ACCENT} label="Edges" value={graph?.edge_count ?? "—"} />
         {sync.data && (
-          <div className="flex items-center self-center text-xs text-ink-muted font-mono">
+          <div className="flex items-center self-center text-xs text-ink-muted font-mono tabular-nums">
             Synced {sync.data.synced} agent nodes
           </div>
         )}
@@ -341,9 +326,13 @@ export default function NaksatraniPage() {
         isLoading ? (
           <div className="h-[560px] rounded-xl border border-hairline bg-surface-1 animate-pulse" />
         ) : nodes.length === 0 ? (
-          <div className="flex h-[560px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-hairline bg-surface-1">
-            <Network className="h-7 w-7 text-ink-ghost opacity-40" />
-            <p className="text-sm text-ink-ghost">No constellation yet — click “Sync Agents” to build it</p>
+          <div className="flex h-[560px] items-center justify-center rounded-xl border border-dashed border-hairline bg-surface-1">
+            <EmptyState
+              icon={Network}
+              accent={ACCENT}
+              title="No constellation yet"
+              body="Click “Sync Agents” to project your agents, sessions and tools into the knowledge graph."
+            />
           </div>
         ) : (
           <ConstellationGraph nodes={nodes} edges={edges} />
@@ -358,11 +347,11 @@ export default function NaksatraniPage() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-hairline bg-surface-2">
-                  <th className="label-caps text-left px-4 py-2.5 text-ink-ghost">Label</th>
-                  <th className="label-caps text-left px-4 py-2.5 text-ink-ghost">Type</th>
-                  <th className="label-caps text-left px-4 py-2.5 text-ink-ghost">Domain</th>
-                  <th className="label-caps text-left px-4 py-2.5 text-ink-ghost">Entity ID</th>
-                  <th className="label-caps text-left px-4 py-2.5 text-ink-ghost">Created</th>
+                  <th className="label-caps text-left px-4 py-2.5 text-ink-tertiary">Label</th>
+                  <th className="label-caps text-left px-4 py-2.5 text-ink-tertiary">Type</th>
+                  <th className="label-caps text-left px-4 py-2.5 text-ink-tertiary">Domain</th>
+                  <th className="label-caps text-left px-4 py-2.5 text-ink-tertiary">Entity ID</th>
+                  <th className="label-caps text-left px-4 py-2.5 text-ink-tertiary">Created</th>
                   <th className="px-4 py-2.5" />
                 </tr>
               </thead>
@@ -377,11 +366,13 @@ export default function NaksatraniPage() {
                   ))
                 ) : !filteredNodes.length ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center">
-                      <Network className="w-8 h-8 text-ink-ghost opacity-30 mx-auto mb-2" />
-                      <p className="text-ink-ghost text-sm">
-                        {search ? "No nodes match filter" : "No nodes yet — sync agents or add manually"}
-                      </p>
+                    <td colSpan={6}>
+                      <EmptyState
+                        icon={Network}
+                        accent={ACCENT}
+                        title={search ? "No nodes match filter" : "No nodes yet"}
+                        body={search ? "Try a different label or entity type." : "Sync agents or add a node manually to start the graph."}
+                      />
                     </td>
                   </tr>
                 ) : (
@@ -399,10 +390,10 @@ export default function NaksatraniPage() {
                           </span>
                         </td>
                         <td className="px-4 py-2.5 text-ink-ghost font-mono">{n.domain}</td>
-                        <td className="px-4 py-2.5 text-ink-ghost font-mono text-[10px]">
+                        <td className="px-4 py-2.5 text-ink-ghost font-mono tabular-nums text-[10px]">
                           {n.entity_id ? n.entity_id.slice(0, 12) + "…" : "—"}
                         </td>
-                        <td className="px-4 py-2.5 text-ink-ghost font-mono">
+                        <td className="px-4 py-2.5 text-ink-ghost font-mono tabular-nums">
                           {new Date(n.created_at).toLocaleDateString()}
                         </td>
                         <td className="px-4 py-2.5">
@@ -429,10 +420,10 @@ export default function NaksatraniPage() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-hairline bg-surface-2">
-                  <th className="label-caps text-left px-4 py-2.5 text-ink-ghost">From</th>
-                  <th className="label-caps text-left px-4 py-2.5 text-ink-ghost">Relationship</th>
-                  <th className="label-caps text-left px-4 py-2.5 text-ink-ghost">To</th>
-                  <th className="label-caps text-left px-4 py-2.5 text-ink-ghost">Weight</th>
+                  <th className="label-caps text-left px-4 py-2.5 text-ink-tertiary">From</th>
+                  <th className="label-caps text-left px-4 py-2.5 text-ink-tertiary">Relationship</th>
+                  <th className="label-caps text-left px-4 py-2.5 text-ink-tertiary">To</th>
+                  <th className="label-caps text-right px-4 py-2.5 text-ink-tertiary">Weight</th>
                   <th className="px-4 py-2.5" />
                 </tr>
               </thead>
@@ -447,8 +438,13 @@ export default function NaksatraniPage() {
                   ))
                 ) : !edges.length ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center">
-                      <p className="text-ink-ghost text-sm">No edges yet — add nodes first, then connect them</p>
+                    <td colSpan={5}>
+                      <EmptyState
+                        icon={Network}
+                        accent={ACCENT}
+                        title="No edges yet"
+                        body="Add nodes first, then connect them to map how your entities relate."
+                      />
                     </td>
                   </tr>
                 ) : (
@@ -467,7 +463,7 @@ export default function NaksatraniPage() {
                           </span>
                         </td>
                         <td className="px-4 py-2.5 text-ink-secondary">{toNode?.label ?? e.to_node_id.slice(0, 8)}</td>
-                        <td className="px-4 py-2.5 text-ink-ghost font-mono">{e.weight.toFixed(1)}</td>
+                        <td className="px-4 py-2.5 text-right text-ink-ghost font-mono tabular-nums">{e.weight.toFixed(1)}</td>
                         <td className="px-4 py-2.5">
                           <button
                             onClick={() => {

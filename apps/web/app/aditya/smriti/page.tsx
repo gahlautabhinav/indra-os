@@ -5,6 +5,7 @@ import { Brain, BookOpen, FolderGit2 } from "lucide-react";
 import { MemoryBrowser } from "@/components/memory/MemoryBrowser";
 import { ProjectHub } from "@/components/vaults/ProjectHub";
 import { VaultCatalog } from "@/components/vaults/VaultCatalog";
+import { DevaPageHeader } from "@/components/common/DevaScaffold";
 
 const ADITYA = "#3a80d4";
 
@@ -22,21 +23,14 @@ export default function SmritiPage() {
   return (
     <div className="space-y-5 p-6">
       {/* Page header */}
-      <div>
-        <p className="label-caps mb-1" style={{ color: ADITYA }}>
-          Smriti · Second Brain
-        </p>
-        <h1
-          className="font-bold tracking-tight text-ink-primary"
-          style={{ fontSize: "28px", letterSpacing: "-0.8px" }}
-        >
-          Knowledge Store
-        </h1>
-        <p className="mt-1 text-sm text-ink-tertiary">
-          स्मृति — that which is remembered. Your Obsidian vaults, tied to the projects and
-          agent sessions that produced them.
-        </p>
-      </div>
+      <DevaPageHeader
+        accent={ADITYA}
+        deva="Smriti"
+        role="Memory · Second Brain"
+        title="Knowledge Store"
+        sanskrit="स्मृति"
+        description="that which is remembered. Your Obsidian vaults, tied to the projects and agent sessions that produced them."
+      />
 
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-hairline">

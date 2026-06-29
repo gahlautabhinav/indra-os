@@ -11,22 +11,11 @@ import {
   useReindexWorkspace,
   useDeleteWorkspace,
 } from "@/lib/api/hooks";
+import { DevaPageHeader, StatTile } from "@/components/common/DevaScaffold";
+import { SkeletonRows } from "@/components/common/Skeleton";
+import { EmptyState } from "@/components/common/EmptyState";
 
 const ACCENT = "#d4843a";
-
-function StatChip({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div
-      className="flex flex-col gap-0.5 px-4 py-2.5 rounded-[6px] border border-hairline bg-surface-2 min-w-[120px]"
-      style={{ borderTop: `2px solid ${ACCENT}` }}
-    >
-      <span className="label-caps text-ink-ghost">{label}</span>
-      <span className="font-mono font-bold tabular-nums text-ink-primary" style={{ fontSize: "22px", lineHeight: 1 }}>
-        {value}
-      </span>
-    </div>
-  );
-}
 
 function WorkspaceCard({
   ws,
@@ -48,7 +37,7 @@ function WorkspaceCard({
       className={`rounded-[10px] border border-hairline p-4 cursor-pointer transition-all ${
         selected ? "bg-surface-3" : "bg-surface-1 hover:bg-surface-2"
       }`}
-      style={selected ? { borderLeft: `3px solid ${ACCENT}` } : {}}
+      style={selected ? { borderTop: `2px solid ${ACCENT}` } : {}}
       onClick={onSelect}
     >
       <div className="flex items-start justify-between gap-2">
@@ -70,7 +59,7 @@ function WorkspaceCard({
 
       <p className="mt-1.5 text-[11px] font-mono text-ink-ghost truncate">{ws.path}</p>
 
-      <div className="mt-3 flex items-center gap-3 text-xs text-ink-muted">
+      <div className="mt-3 flex items-center gap-3 font-mono tabular-nums text-[11px] text-ink-muted">
         <span>{ws.file_count.toLocaleString()} files</span>
         <span>·</span>
         <span>{formatBytes(ws.size_bytes)}</span>
@@ -143,16 +132,14 @@ function FileBrowser({
       {/* File list */}
       <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 380px)", minHeight: "300px" }}>
         {isLoading ? (
-          <div className="p-4 space-y-2">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-9 rounded bg-surface-2 animate-pulse" />
-            ))}
-          </div>
+          <SkeletonRows rows={8} height={36} className="p-4" />
         ) : !data?.entries.length ? (
-          <div className="flex flex-col items-center justify-center py-12 gap-2">
-            <Folder className="w-8 h-8 text-ink-ghost opacity-30" />
-            <p className="text-sm text-ink-ghost">Empty directory</p>
-          </div>
+          <EmptyState
+            icon={Folder}
+            accent={ACCENT}
+            title="Empty directory"
+            body="Nothing indexed at this path yet — re-index the workspace or browse a different folder."
+          />
         ) : (
           <>
             {currentPath && (
@@ -184,7 +171,7 @@ function FileBrowser({
                   {entry.name}
                 </span>
                 {entry.type === "file" && (
-                  <span className="text-[11px] font-mono text-ink-ghost shrink-0">
+                  <span className="text-[11px] font-mono tabular-nums text-ink-ghost shrink-0">
                     {formatBytes(entry.size)}
                   </span>
                 )}
@@ -195,7 +182,7 @@ function FileBrowser({
       </div>
 
       <div className="px-4 py-2 border-t border-hairline">
-        <span className="text-[10px] font-mono text-ink-ghost">
+        <span className="text-[10px] font-mono tabular-nums text-ink-ghost">
           {data?.total ?? 0} entries · {data?.path ?? "/"}
         </span>
       </div>
@@ -220,11 +207,11 @@ function AddWorkspaceModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-canvas/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <form
         onSubmit={submit}
-        className="relative rounded-[12px] border border-hairline bg-surface-1 w-full max-w-md p-6 shadow-xl"
-        style={{ borderTop: `2px solid ${ACCENT}` }}
+        className="relative rounded-xl border border-hairline bg-surface-1 w-full max-w-md p-6"
+        style={{ borderTop: `2px solid ${ACCENT}`, boxShadow: "var(--shadow-floating)" }}
       >
         <div className="flex items-center justify-between mb-5">
           <span className="label-caps" style={{ color: ACCENT }}>Add Workspace</span>
@@ -316,34 +303,31 @@ export default function PrthiviPage() {
       {showAdd && <AddWorkspaceModal onClose={() => setShowAdd(false)} />}
 
       {/* Page header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="label-caps mb-1" style={{ color: ACCENT }}>
-            Pṛthivī · Storage
-          </p>
-          <h1 className="font-bold tracking-tight text-ink-primary" style={{ fontSize: "28px", letterSpacing: "-0.8px" }}>
-            Workspace Manager
-          </h1>
-          <p className="mt-1 text-sm text-ink-tertiary">
-            Filesystem roots tracked by INDRA — indexed and browsable
-          </p>
-        </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="flex items-center gap-2 label-caps px-3 py-2 rounded border border-hairline hover:border-hairline-bright transition-colors"
-          style={{ color: ACCENT }}
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Add Workspace
-        </button>
-      </div>
+      <DevaPageHeader
+        accent={ACCENT}
+        deva="Pṛthivī"
+        role="Storage"
+        title="Storage & Workspace"
+        sanskrit="पृथ्वी"
+        description="filesystem roots tracked by INDRA — indexed and browsable."
+        actions={
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-2 label-caps px-3 py-2 rounded border border-hairline hover:border-hairline-bright transition-colors"
+            style={{ color: ACCENT }}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add Workspace
+          </button>
+        }
+      />
 
       {/* Stats strip */}
       <div className="flex items-start gap-3 flex-wrap">
-        <StatChip label="Workspaces" value={analytics?.total_workspaces ?? "—"} />
-        <StatChip label="Active" value={analytics?.active_workspaces ?? "—"} />
-        <StatChip label="Total Files" value={analytics ? analytics.total_files.toLocaleString() : "—"} />
-        <StatChip label="Total Size" value={analytics?.total_size_human ?? "—"} />
+        <StatTile accent={ACCENT} label="Workspaces" value={analytics?.total_workspaces ?? "—"} />
+        <StatTile accent={ACCENT} label="Active" value={analytics?.active_workspaces ?? "—"} />
+        <StatTile accent={ACCENT} label="Total Files" value={analytics ? analytics.total_files.toLocaleString() : "—"} />
+        <StatTile accent={ACCENT} label="Total Size" value={analytics?.total_size_human ?? "—"} />
       </div>
 
       {/* Split: workspace list + file browser */}
@@ -351,23 +335,27 @@ export default function PrthiviPage() {
         {/* Workspace list */}
         <div className="space-y-2">
           {isLoading ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-28 rounded-[10px] border border-hairline bg-surface-2 animate-pulse" />
-            ))
+            <SkeletonRows rows={3} height={112} />
           ) : !workspaces?.length ? (
             <div
-              className="rounded-[12px] border border-hairline border-dashed bg-surface-1 flex flex-col items-center justify-center py-12 gap-3"
+              className="rounded-[12px] border border-dashed border-hairline bg-surface-1"
               style={{ borderTop: `2px solid ${ACCENT}` }}
             >
-              <HardDrive className="w-8 h-8 text-ink-ghost opacity-30" />
-              <p className="text-sm text-ink-ghost">No workspaces yet</p>
-              <button
-                onClick={() => setShowAdd(true)}
-                className="label-caps text-xs px-3 py-1.5 rounded border border-hairline hover:border-hairline-bright transition-colors"
-                style={{ color: ACCENT }}
-              >
-                Add first workspace
-              </button>
+              <EmptyState
+                icon={HardDrive}
+                accent={ACCENT}
+                title="No workspaces yet"
+                body="Add a filesystem root and INDRA will index it so agents can browse and search its files."
+                action={
+                  <button
+                    onClick={() => setShowAdd(true)}
+                    className="label-caps text-xs px-3 py-1.5 rounded border border-hairline hover:border-hairline-bright transition-colors"
+                    style={{ color: ACCENT }}
+                  >
+                    Add first workspace
+                  </button>
+                }
+              />
             </div>
           ) : (
             workspaces.map((ws: Workspace) => (
@@ -392,12 +380,13 @@ export default function PrthiviPage() {
         {selected ? (
           <FileBrowser wsId={selected.id} wsName={selected.name} />
         ) : (
-          <div
-            className="rounded-[12px] border border-hairline border-dashed bg-surface-1 flex flex-col items-center justify-center gap-2 min-h-[300px]"
-          >
-            <Folder className="w-10 h-10 text-ink-ghost opacity-20" />
-            <p className="label-caps text-ink-ghost">Select a workspace</p>
-            <p className="text-xs text-ink-tertiary">Click a workspace card to browse its files</p>
+          <div className="rounded-[12px] border border-dashed border-hairline bg-surface-1 min-h-[300px]">
+            <EmptyState
+              icon={Folder}
+              accent={ACCENT}
+              title="Select a workspace"
+              body="Click a workspace card to browse its indexed files and folders."
+            />
           </div>
         )}
       </div>

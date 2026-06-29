@@ -4,7 +4,11 @@ import { useState } from "react";
 import { ArrowUpCircle, Siren, Megaphone } from "lucide-react";
 import type { Agent, Escalation } from "@indra/types";
 import { useAgents, useEscalations, useCreateEscalation } from "@/lib/api/hooks";
-import { DevaHeader, StatPill, DevaEmptyState, RUDRA } from "@/components/rudra/DevaHeader";
+import { DevaPageHeader, StatTile } from "@/components/common/DevaScaffold";
+import { EmptyState } from "@/components/common/EmptyState";
+import { SkeletonRows } from "@/components/common/Skeleton";
+
+const RUDRA = "#c44450";
 
 const PRIORITIES = ["low", "normal", "high", "urgent"] as const;
 const PRIO_COLOR: Record<string, string> = {
@@ -36,20 +40,21 @@ export default function UdanahPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <DevaHeader
+      <DevaPageHeader
+        accent={RUDRA}
         deva="Udanah"
-        role="Escalation Engine"
-        title="The Rising Breath"
+        role="Escalations"
+        title="Escalation Center"
         sanskrit="उदानः"
         description="the ascending current that lifts critical issues to human operators for decision."
       />
 
       <div className="flex flex-wrap gap-3">
-        <StatPill label="Open Escalations" value={data?.total ?? 0} accent="#e04040" />
+        <StatTile label="Open Escalations" value={data?.total ?? 0} accent={RUDRA} />
       </div>
 
       {/* Raise escalation */}
-      <div className="rounded-lg border border-hairline bg-surface-1 p-4">
+      <div className="rounded-lg border border-hairline bg-surface-1 p-4" style={{ borderTop: `2px solid ${RUDRA}` }}>
         <p className="mb-3 text-[10px] uppercase tracking-wider text-ink-ghost">Raise escalation</p>
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-1 flex-col gap-1">
@@ -90,14 +95,15 @@ export default function UdanahPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-hairline bg-surface-1">
+      <div className="overflow-hidden rounded-lg border border-hairline bg-surface-1" style={{ borderTop: `2px solid ${RUDRA}` }}>
         {isLoading ? (
-          <div className="py-12 text-center text-sm text-ink-ghost">Loading escalations…</div>
+          <div className="p-4"><SkeletonRows rows={6} /></div>
         ) : escalations.length === 0 ? (
-          <DevaEmptyState
-            icon={<Megaphone className="h-5 w-5" />}
+          <EmptyState
+            icon={Megaphone}
             title="No open escalations"
-            hint="Udanah raises critical issues to operators. Raise one above, or it triggers automatically on severe faults."
+            body="Udanah raises critical issues to operators. Raise one above, or it triggers automatically on severe faults."
+            accent={RUDRA}
           />
         ) : (
           <ul className="divide-y divide-hairline">

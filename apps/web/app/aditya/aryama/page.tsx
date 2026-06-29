@@ -4,6 +4,9 @@ import { useState } from "react";
 import { Users, ChevronDown } from "lucide-react";
 import { useRbacUsers, useRbacStats, useUpdateUserRole } from "@/lib/api/hooks";
 import type { UserRole, UserRoleRead } from "@indra/types";
+import { DevaPageHeader, StatTile } from "@/components/common/DevaScaffold";
+import { SkeletonRows } from "@/components/common/Skeleton";
+import { EmptyState } from "@/components/common/EmptyState";
 
 const ADITYA = "#3a80d4";
 
@@ -65,38 +68,44 @@ export default function AryamaPage() {
 
   return (
     <div className="p-6 space-y-5">
-      <div>
-        <p className="label-caps mb-1" style={{ color: ADITYA }}>
-          Aryamah · RBAC
-        </p>
-        <h1
-          className="font-bold tracking-tight text-ink-primary"
-          style={{ fontSize: "28px", letterSpacing: "-0.8px" }}
-        >
-          Role Management
-        </h1>
-      </div>
+      <DevaPageHeader
+        accent={ADITYA}
+        deva="Aryama"
+        role="Access Control"
+        title="RBAC"
+        sanskrit="अर्यमा"
+        description="role-based access — who can see and do what across INDRA."
+      />
 
       {/* Stats strip */}
       {stats && (
         <div className="grid grid-cols-4 gap-3">
           {(["admin", "user", "viewer", "total"] as const).map((key) => (
-            <div key={key} className="bg-surface-1 border border-hairline rounded-lg p-4">
-              <p className="label-caps text-ink-ghost mb-1">{key}</p>
-              <p className="text-2xl font-bold text-ink-primary">{stats[key]}</p>
-            </div>
+            <StatTile key={key} label={key} value={stats[key]} accent={ADITYA} />
           ))}
         </div>
       )}
 
       {/* Users table */}
-      <div className="bg-surface-1 border border-hairline rounded-lg overflow-hidden">
+      <div
+        className="bg-surface-1 border border-hairline rounded-lg overflow-hidden"
+        style={{ borderTop: "2px solid #3a80d4" }}
+      >
         <div className="flex items-center gap-2 px-4 py-3 border-b border-hairline">
           <Users size={15} className="text-ink-ghost" />
           <span className="label-caps text-ink-secondary">Users</span>
         </div>
         {isLoading ? (
-          <div className="p-8 text-center text-ink-ghost label-caps">Loading…</div>
+          <div className="p-4">
+            <SkeletonRows rows={5} height={40} />
+          </div>
+        ) : (users ?? []).length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title="No users yet"
+            body="People who sign in to INDRA appear here. Assign each a role — viewer, user, or admin — to control what they can see and do."
+            accent={ADITYA}
+          />
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -116,7 +125,7 @@ export default function AryamaPage() {
                   <td className="px-4 py-2.5">
                     <RoleBadge role={u.role} />
                   </td>
-                  <td className="px-4 py-2.5 text-ink-ghost text-xs">
+                  <td className="px-4 py-2.5 font-mono tabular-nums text-ink-ghost text-xs">
                     {new Date(u.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-2.5 text-right">

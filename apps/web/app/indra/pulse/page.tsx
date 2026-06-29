@@ -5,52 +5,38 @@ import { Activity, Wifi, WifiOff } from "lucide-react";
 import { useWebSocket } from "@/lib/ws/useWebSocket";
 import { useDashboard, useNotificationStats, useProcesses } from "@/lib/api/hooks";
 import type { WSEvent } from "@indra/types";
+import { DevaPageHeader } from "@/components/common/DevaScaffold";
+import { MetricTile } from "@/components/metrics/MetricTile";
+import { EmptyState } from "@/components/common/EmptyState";
 
 const INDRA = "#4dc8c8";
 const MAX_EVENTS = 60;
 
-const EVENT_COLORS: Record<string, string> = {
-  "agent.status_changed": "#4dc8c8",
-  "session.created": "#2ab870",
-  "session.ended": "#637585",
-  "trace.completed": "#3a80d4",
-  "mcp_server.status_changed": "#d4843a",
-  "alert.created": "#c44450",
-};
-
 function EventRow({ event, idx }: { event: WSEvent & { _ts: number }; idx: number }) {
-  const color = EVENT_COLORS[event.event_type] ?? "#637585";
-  const age = Date.now() - event._ts;
-  const fresh = age < 3000;
+  const fresh = Date.now() - event._ts < 3000;
 
   return (
     <div
-      className="flex items-start gap-3 px-4 py-2 border-b border-hairline last:border-0 transition-all"
-      style={fresh ? { background: `${color}0a` } : {}}
+      className="flex items-start gap-3 border-b border-hairline px-4 py-2 transition-all last:border-0"
+      style={fresh ? { background: `color-mix(in oklab, ${INDRA} 6%, transparent)` } : {}}
     >
-      <span
-        className="w-1.5 h-1.5 rounded-full shrink-0 mt-1.5"
-        style={{ background: color }}
-      />
-      <div className="flex-1 min-w-0">
+      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: INDRA }} />
+      <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-xs" style={{ color, fontSize: "10px" }}>
+          <span className="font-mono text-ink-secondary" style={{ fontSize: "10px" }}>
             {event.event_type}
           </span>
-          <span className="text-ink-ghost font-mono" style={{ fontSize: "9px" }}>
+          <span className="font-mono tabular-nums text-ink-ghost" style={{ fontSize: "9px" }}>
             {new Date(event._ts).toLocaleTimeString()}
           </span>
         </div>
-        <p className="text-xs text-ink-secondary truncate">
+        <p className="truncate text-xs text-ink-secondary">
           {typeof event.data === "object" && event.data
             ? JSON.stringify(event.data).slice(0, 120)
             : String(event.data ?? "—")}
         </p>
       </div>
-      <span
-        className="text-xs font-mono shrink-0 mt-0.5"
-        style={{ color: "#637585", fontSize: "9px" }}
-      >
+      <span className="mt-0.5 shrink-0 font-mono tabular-nums text-ink-ghost" style={{ fontSize: "9px" }}>
         #{idx}
       </span>
     </div>
@@ -89,24 +75,27 @@ export default function PulsePage() {
   }, []);
 
   const healthPct = dashboard?.system_health ?? 0;
-  const healthColor = healthPct >= 90 ? "#2ab870" : healthPct >= 60 ? "#e0a030" : "#c44450";
+  const healthColor =
+    healthPct >= 90
+      ? "var(--state-healthy)"
+      : healthPct >= 60
+        ? "var(--state-degraded)"
+        : "var(--state-critical)";
+  const unread = notifStats?.unread ?? 0;
 
   return (
-    <div className="p-6 space-y-5">
-      <div>
-        <p className="label-caps mb-1" style={{ color: INDRA }}>
-          INDRA · Real-Time Pulse
-        </p>
-        <h1
-          className="font-bold tracking-tight text-ink-primary"
-          style={{ fontSize: "28px", letterSpacing: "-0.8px" }}
-        >
-          System Pulse
-        </h1>
-      </div>
+    <div className="space-y-5 p-6">
+      <DevaPageHeader
+        accent={INDRA}
+        deva="Indra"
+        role="Livewatch"
+        title="Civilization Pulse"
+        sanskrit="इन्द्रः"
+        description="the real-time stream of every signal across the civilization."
+      />
 
       {/* Status bar */}
-      <div className="flex items-center gap-3 p-3 rounded-lg border border-hairline bg-surface-1 text-xs">
+      <div className="flex items-center gap-3 rounded-lg border border-hairline bg-surface-1 p-3 text-xs">
         {isConnected ? (
           <Wifi size={14} className="text-healthy" />
         ) : (
@@ -116,54 +105,51 @@ export default function PulsePage() {
           WebSocket: {status.toUpperCase()}
         </span>
         <span className="text-hairline-bright">·</span>
-        <span className="text-ink-ghost font-mono">{counterRef.current} events received</span>
-        <span className="ml-auto text-ink-ghost font-mono">
+        <span className="font-mono tabular-nums text-ink-ghost">{counterRef.current} events received</span>
+        <span className="ml-auto font-mono tabular-nums text-ink-ghost">
           {new Date().toLocaleTimeString()} local
         </span>
       </div>
 
       {/* Metric strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-surface-1 border border-hairline rounded-lg p-4">
-          <p className="label-caps text-ink-ghost mb-1">System Health</p>
-          <p className="text-2xl font-bold" style={{ color: healthColor }}>{healthPct}%</p>
-        </div>
-        <div className="bg-surface-1 border border-hairline rounded-lg p-4">
-          <p className="label-caps text-ink-ghost mb-1">Active Agents</p>
-          <p className="text-2xl font-bold text-ink-primary">{dashboard?.active_agents ?? 0}</p>
-        </div>
-        <div className="bg-surface-1 border border-hairline rounded-lg p-4">
-          <p className="label-caps text-ink-ghost mb-1">Active Processes</p>
-          <p className="text-2xl font-bold text-ink-primary">{processes?.processes?.length ?? 0}</p>
-        </div>
-        <div className="bg-surface-1 border border-hairline rounded-lg p-4">
-          <p className="label-caps text-ink-ghost mb-1">Unread Alerts</p>
-          <p className="text-2xl font-bold" style={{ color: (notifStats?.unread ?? 0) > 0 ? "#c44450" : "#2ab870" }}>
-            {notifStats?.unread ?? 0}
-          </p>
-        </div>
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <MetricTile label="System Health" value={healthPct} unit="%" domain="indra" valueColor={healthColor} live />
+        <MetricTile label="Active Agents" value={dashboard?.active_agents ?? 0} domain="rudra" />
+        <MetricTile label="Active Processes" value={processes?.processes?.length ?? 0} domain="vasu" />
+        <MetricTile
+          label="Unread Alerts"
+          value={unread}
+          domain="indra"
+          valueColor={unread > 0 ? "var(--state-critical)" : "var(--indra-ink-primary)"}
+        />
       </div>
 
       {/* Live event feed */}
-      <div className="bg-surface-1 border border-hairline rounded-lg overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-hairline">
+      <div className="overflow-hidden rounded-xl border border-hairline bg-surface-1" style={{ borderTop: `2px solid ${INDRA}` }}>
+        <div className="flex items-center gap-2 border-b border-hairline px-4 py-3">
           <Activity size={14} style={{ color: INDRA }} />
           <span className="label-caps text-ink-secondary">Live Event Stream</span>
           {isConnected && (
-            <span className="ml-auto flex items-center gap-1.5 text-xs text-healthy">
-              <span className="w-1.5 h-1.5 rounded-full bg-healthy animate-pulse" />
-              LIVE
+            <span className="ml-auto flex items-center gap-1.5">
+              <span className="relative inline-flex h-1.5 w-1.5">
+                <span className="live-ring absolute inset-0 rounded-full bg-accent" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent" />
+              </span>
+              <span className="label-caps text-accent">Live</span>
             </span>
           )}
         </div>
         {events.length === 0 ? (
-          <div className="px-4 py-10 text-center">
-            <p className="text-sm text-ink-ghost">
-              {isConnected
-                ? "Waiting for events… start a Claude Code session to see activity"
-                : "WebSocket disconnected — events will appear when connected"}
-            </p>
-          </div>
+          <EmptyState
+            icon={Activity}
+            accent={INDRA}
+            title="Waiting for events"
+            body={
+              isConnected
+                ? "Connected. Start a Claude Code session to see activity stream in live."
+                : "WebSocket disconnected — events will appear here once the connection is restored."
+            }
+          />
         ) : (
           <div className="max-h-[480px] overflow-y-auto font-mono">
             {events.map((ev, i) => (

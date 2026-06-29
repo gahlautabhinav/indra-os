@@ -3,7 +3,11 @@
 import { HeartPulse, RotateCcw, ShieldCheck } from "lucide-react";
 import type { Agent } from "@indra/types";
 import { useAgents, useRecoveryStatus, useRecoverAgent } from "@/lib/api/hooks";
-import { DevaHeader, StatPill, DevaEmptyState, RUDRA } from "@/components/rudra/DevaHeader";
+import { DevaPageHeader, StatTile } from "@/components/common/DevaScaffold";
+import { EmptyState } from "@/components/common/EmptyState";
+import { SkeletonRows } from "@/components/common/Skeleton";
+
+const RUDRA = "#c44450";
 
 export default function KrkalahPage() {
   const { data, isLoading } = useAgents({ limit: 200 });
@@ -15,27 +19,29 @@ export default function KrkalahPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <DevaHeader
+      <DevaPageHeader
+        accent={RUDRA}
         deva="Krkalah"
-        role="Recovery · Self-Healing"
-        title="The Healing Breath"
+        role="Recovery"
+        title="Recovery Console"
         sanskrit="कृकलः"
         description="the regenerating current that revives stalled and errored agents back into the workforce."
       />
 
       <div className="flex flex-wrap gap-3">
-        <StatPill label="Needs Recovery" value={failing.length} accent="#e04040" />
-        <StatPill label="Active Recoveries" value={status?.active_recoveries ?? 0} accent="#2ab870" />
+        <StatTile label="Needs Recovery" value={failing.length} accent={RUDRA} />
+        <StatTile label="Active Recoveries" value={status?.active_recoveries ?? 0} accent={RUDRA} />
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-hairline bg-surface-1">
+      <div className="overflow-hidden rounded-lg border border-hairline bg-surface-1" style={{ borderTop: `2px solid ${RUDRA}` }}>
         {isLoading ? (
-          <div className="py-12 text-center text-sm text-ink-ghost">Loading agents…</div>
+          <div className="p-4"><SkeletonRows rows={6} /></div>
         ) : failing.length === 0 ? (
-          <DevaEmptyState
-            icon={<ShieldCheck className="h-5 w-5" />}
+          <EmptyState
+            icon={ShieldCheck}
             title="All agents healthy"
-            hint="Krkalah surfaces errored or dead agents and can trigger a recovery cycle. None need it now."
+            body="Krkalah surfaces errored or dead agents and can trigger a recovery cycle. None need it now."
+            accent="var(--state-healthy)"
           />
         ) : (
           <table className="w-full text-sm">

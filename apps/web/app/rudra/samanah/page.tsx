@@ -9,7 +9,11 @@ import {
   useCoordinationTasks,
   useAssignCoordinationTask,
 } from "@/lib/api/hooks";
-import { DevaHeader, StatPill, DevaEmptyState, RUDRA } from "@/components/rudra/DevaHeader";
+import { DevaPageHeader, StatTile } from "@/components/common/DevaScaffold";
+import { EmptyState } from "@/components/common/EmptyState";
+import { SkeletonRows } from "@/components/common/Skeleton";
+
+const RUDRA = "#c44450";
 
 export default function SamanahPage() {
   const { data, isLoading } = useCoordinationTasks();
@@ -31,22 +35,23 @@ export default function SamanahPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <DevaHeader
+      <DevaPageHeader
+        accent={RUDRA}
         deva="Samanah"
-        role="Coordination · Load Balancing"
-        title="The Balancing Breath"
+        role="Coordination"
+        title="Coordination Console"
         sanskrit="समानः"
         description="the equalizing current that distributes work evenly across the agent workforce."
       />
 
       <div className="flex flex-wrap gap-3">
-        <StatPill label="In Coordination" value={data?.total ?? 0} />
-        <StatPill label="Pending Tasks" value={pendingTasks.length} accent="#e0a030" />
-        <StatPill label="Available Agents" value={agents.length} accent="#4dc8c8" />
+        <StatTile label="In Coordination" value={data?.total ?? 0} accent={RUDRA} />
+        <StatTile label="Pending Tasks" value={pendingTasks.length} accent={RUDRA} />
+        <StatTile label="Available Agents" value={agents.length} accent={RUDRA} />
       </div>
 
       {/* Assign */}
-      <div className="rounded-lg border border-hairline bg-surface-1 p-4">
+      <div className="rounded-lg border border-hairline bg-surface-1 p-4" style={{ borderTop: `2px solid ${RUDRA}` }}>
         <p className="mb-3 text-[10px] uppercase tracking-wider text-ink-ghost">Assign task to agent</p>
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1">
@@ -78,14 +83,15 @@ export default function SamanahPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-hairline bg-surface-1">
+      <div className="overflow-hidden rounded-lg border border-hairline bg-surface-1" style={{ borderTop: `2px solid ${RUDRA}` }}>
         {isLoading ? (
-          <div className="py-12 text-center text-sm text-ink-ghost">Loading coordination state…</div>
+          <div className="p-4"><SkeletonRows rows={6} /></div>
         ) : coordTasks.length === 0 ? (
-          <DevaEmptyState
-            icon={<Scale className="h-5 w-5" />}
+          <EmptyState
+            icon={Scale}
             title="No active coordination"
-            hint="Samanah balances task assignment across agents. Assign a task above to begin coordinating."
+            body="Samanah balances task assignment across agents. Assign a task above to begin coordinating."
+            accent={RUDRA}
           />
         ) : (
           <ul className="divide-y divide-hairline">
