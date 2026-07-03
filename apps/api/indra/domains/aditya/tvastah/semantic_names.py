@@ -25,7 +25,7 @@ import structlog
 
 logger = structlog.get_logger()
 
-_TIMEOUT_S = 240
+_TIMEOUT_S = 150
 _MAX_LABELS_PER_COMMUNITY = 18
 # Name in batches so large graphs still get AI names — one Claude call per batch,
 # merged. A single call over hundreds of communities truncates / degrades.
@@ -102,16 +102,13 @@ async def name_communities(graph_json_path: str) -> int:
 
     items = sorted(by_comm.items())
     cmd = [claude, "-p", _INSTRUCTION, "--output-format", "json"]
-    labels: dict[str, str] = {}
-    # One Claude call per batch of communities; merge the maps. A failed batch is
-    # skipped (its communities keep "Community N") rather than sinking the whole run.
-    for start in range(0, len(items), _BATCH_SIZE):
-        batch = items[start : start + _BATCH_SIZE]
+
+    async def _name_batch(batch: list[tuple[int, list[str]]]) -> dict[str, str]:
         listing = "\n".join(f"community {cid}: " + ", ".join(labs) for cid, labs in batch)
         rc, out, err = await asyncio.to_thread(_run_claude, cmd, listing)
         if rc != 0:
             logger.warning("semantic_names.claude_failed", rc=rc, err=err[:200])
-            continue
+            return {}
         # `--output-format json` wraps the model's answer in {"result": "..."}.
         text = out
         try:
@@ -120,7 +117,16 @@ async def name_communities(graph_json_path: str) -> int:
                 text = env["result"]
         except ValueError:
             pass
-        labels.update(_extract_map(text))
+        return _extract_map(text)
+
+    # Batches run concurrently — total ≈ the slowest single call, and one hung batch
+    # can't freeze the whole pipeline. Failed batches keep "Community N".
+    batches = [items[i : i + _BATCH_SIZE] for i in range(0, len(items), _BATCH_SIZE)]
+    results = await asyncio.gather(*(_name_batch(b) for b in batches), return_exceptions=True)
+    labels: dict[str, str] = {}
+    for r in results:
+        if isinstance(r, dict):
+            labels.update(r)
 
     if not labels:
         logger.warning("semantic_names.no_labels_parsed")
