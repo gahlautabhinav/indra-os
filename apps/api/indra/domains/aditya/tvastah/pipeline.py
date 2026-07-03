@@ -191,8 +191,26 @@ async def enqueue(
 
 
 def _vault_out_dir(root: str, gout: Path) -> str:
-    """The Obsidian vault dir to (re)build: the project's registered vault from
-    obsidian.json if one exists, else graphify-out/obsidian-vault."""
+    """The Obsidian vault dir to (re)build. Reuse an existing vault instead of
+    spawning a second one; honour the user's naming convention. Priority:
+
+      1. an existing ``*-wiki`` dir in graphify-out (the user's convention);
+      2. an existing ``*-vault`` dir;
+      3. the project's registered vault from obsidian.json (authoritative for Obsidian);
+      4. an existing ``obsidian-vault`` / any dir holding a ``.obsidian/``;
+      5. else the default ``graphify-out/obsidian-vault`` (created fresh).
+    """
+    dirs: list[Path] = []
+    if gout.is_dir():
+        try:
+            dirs = [d for d in gout.iterdir() if d.is_dir() and not d.name.startswith(".")]
+        except OSError:
+            dirs = []
+        for suffix in ("-wiki", "-vault"):
+            hits = sorted(d for d in dirs if d.name.lower().endswith(suffix))
+            if hits:
+                return str(hits[0])
+
     try:
         from indra.domains.aditya.smriti.vault_scan import _norm, scan_vaults
 
@@ -201,8 +219,12 @@ def _vault_out_dir(root: str, gout: Path) -> str:
             r = v.get("project_root")
             if r and _norm(r) == target and v.get("path"):
                 return str(v["path"])
-    except Exception:  # noqa: BLE001 — fall back to the default vault dir
+    except Exception:  # noqa: BLE001 — fall back to on-disk detection
         pass
+
+    obsidian = [d for d in dirs if d.name.lower() == "obsidian-vault" or (d / ".obsidian").is_dir()]
+    if obsidian:
+        return str(sorted(obsidian)[0])
     return str(gout / "obsidian-vault")
 
 

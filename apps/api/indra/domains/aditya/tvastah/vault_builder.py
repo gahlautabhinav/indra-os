@@ -30,7 +30,14 @@ _COLORS = [
 
 
 def _safe(s: str) -> str:
-    return re.sub(r'[\\/*?:"<>|]', "_", s)
+    """Filesystem-safe note filename. Handles Windows illegal chars, control
+    chars, trailing dot/space, and the 255-char component limit — rationale nodes
+    carry full-sentence labels that otherwise blow up open() with EINVAL."""
+    s = re.sub(r'[\\/*?:"<>|\x00-\x1f]', "_", s)
+    s = s.strip().rstrip(". ")  # Windows rejects names ending in "." or " "
+    if len(s) > 120:
+        s = s[:120].rstrip(". ")
+    return s or "_"
 
 
 def _wl(label: str) -> str:
