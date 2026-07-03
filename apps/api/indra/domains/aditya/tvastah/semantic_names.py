@@ -27,7 +27,10 @@ logger = structlog.get_logger()
 
 _TIMEOUT_S = 240
 _MAX_LABELS_PER_COMMUNITY = 18
-_MAX_COMMUNITIES = 120
+# Name in batches so large graphs still get AI names — one Claude call per batch,
+# merged. A single call over hundreds of communities truncates / degrades.
+_BATCH_SIZE = 60
+_MAX_COMMUNITIES = 600  # overall sanity ceiling (cost bound)
 
 _INSTRUCTION = (
     "The text on stdin lists code communities — one line per community ('community "
@@ -97,25 +100,28 @@ async def name_communities(graph_json_path: str) -> int:
     if not by_comm or len(by_comm) > _MAX_COMMUNITIES:
         return 0
 
-    listing = "\n".join(
-        f"community {cid}: " + ", ".join(labels) for cid, labels in sorted(by_comm.items())
-    )
+    items = sorted(by_comm.items())
     cmd = [claude, "-p", _INSTRUCTION, "--output-format", "json"]
-    rc, out, err = await asyncio.to_thread(_run_claude, cmd, listing)
-    if rc != 0:
-        logger.warning("semantic_names.claude_failed", rc=rc, err=err[:200])
-        return 0
+    labels: dict[str, str] = {}
+    # One Claude call per batch of communities; merge the maps. A failed batch is
+    # skipped (its communities keep "Community N") rather than sinking the whole run.
+    for start in range(0, len(items), _BATCH_SIZE):
+        batch = items[start : start + _BATCH_SIZE]
+        listing = "\n".join(f"community {cid}: " + ", ".join(labs) for cid, labs in batch)
+        rc, out, err = await asyncio.to_thread(_run_claude, cmd, listing)
+        if rc != 0:
+            logger.warning("semantic_names.claude_failed", rc=rc, err=err[:200])
+            continue
+        # `--output-format json` wraps the model's answer in {"result": "..."}.
+        text = out
+        try:
+            env = json.loads(out)
+            if isinstance(env, dict) and isinstance(env.get("result"), str):
+                text = env["result"]
+        except ValueError:
+            pass
+        labels.update(_extract_map(text))
 
-    # `--output-format json` wraps the model's answer in {"result": "..."}.
-    text = out
-    try:
-        env = json.loads(out)
-        if isinstance(env, dict) and isinstance(env.get("result"), str):
-            text = env["result"]
-    except ValueError:
-        pass
-
-    labels = _extract_map(text)
     if not labels:
         logger.warning("semantic_names.no_labels_parsed")
         return 0
