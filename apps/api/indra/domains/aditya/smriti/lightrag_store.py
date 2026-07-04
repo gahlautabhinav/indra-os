@@ -64,6 +64,11 @@ async def _get_rag(graphify_out: str):  # type: ignore[no-untyped-def]
         working_dir=wd,
         embedding_func=EmbeddingFunc(embedding_dim=_EMBED_DIM, max_token_size=512, func=_embed),
         llm_model_func=claude_complete,
+        # Seeding is LLM-free by design (we insert a prebuilt KG). LightRAG otherwise
+        # calls the LLM to summarize entities merged from >=N descriptions during
+        # ainsert_custom_kg — on a duplicate-heavy graph that fires many claude calls
+        # and stalls the seed. Set the threshold out of reach so merge never uses the LLM.
+        force_llm_summary_on_merge=1_000_000,
     )
     await rag.initialize_storages()
     await initialize_pipeline_status()
