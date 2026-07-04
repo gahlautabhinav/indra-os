@@ -13,10 +13,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import select
 
+from indra.models.project import Project
 from indra.models.task import Task
 
 from . import pipeline
@@ -42,6 +44,7 @@ class IndexWorker:
         log.info("IndexWorker stopped")
 
     async def _loop(self) -> None:
+        await self._reap_orphans()
         while True:
             try:
                 await asyncio.sleep(WORKER_INTERVAL)
@@ -50,6 +53,41 @@ class IndexWorker:
                 raise
             except Exception:
                 log.exception("IndexWorker tick failed — will retry")
+
+    async def _reap_orphans(self) -> None:
+        """A freshly-started worker owns no run (concurrency 1), so any index Task
+        still 'running' was orphaned by a prior crash/reload (e.g. uvicorn --reload
+        restarting mid-run). Mark them failed and un-stick their project, so the UI
+        never shows a zombie 'running' forever."""
+        from indra.database import AsyncSessionLocal
+
+        try:
+            async with AsyncSessionLocal() as db:
+                rows = list(
+                    (
+                        await db.execute(
+                            select(Task).where(
+                                Task.status == "running",
+                                Task.input["kind"].astext == "index",
+                            )
+                        )
+                    ).scalars()
+                )
+                for t in rows:
+                    t.status = "failed"
+                    t.error = "orphaned — server restarted mid-run"
+                    if t.finished_at is None:
+                        t.finished_at = datetime.now(UTC)
+                    pid = t.input.get("project_id")
+                    if pid:
+                        p = await db.get(Project, uuid.UUID(pid))
+                        if p and p.status in ("running", "queued"):
+                            p.status = "ok" if p.index_version > 0 else "idle"
+                if rows:
+                    await db.commit()
+                    log.warning("IndexWorker reaped %d orphaned index run(s)", len(rows))
+        except Exception:
+            log.exception("IndexWorker orphan reap failed")
 
     async def _claim_and_run(self) -> None:
         from indra.database import AsyncSessionLocal
