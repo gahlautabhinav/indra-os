@@ -14,6 +14,7 @@ in automode (scheduled mode=semantic) too.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import os
 import re
@@ -56,22 +57,39 @@ def _extract_map(text: str) -> dict[str, str]:
 
 
 def _run_claude(cmd: list[str], stdin_text: str) -> tuple[int, str, str]:
+    """Run `claude -p`, bounded by a hard timeout. On timeout the whole process
+    TREE is killed — on Windows `claude` spawns a node grandchild that keeps the
+    stdout pipe open, so a plain kill (or subprocess.run's timeout) hangs forever
+    on communicate(). taskkill /T reaps the tree so the call returns."""
     try:
-        p = subprocess.run(
+        proc = subprocess.Popen(
             cmd,
-            input=stdin_text,
-            capture_output=True,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
             encoding="utf-8",
             errors="replace",
-            timeout=_TIMEOUT_S,
-            check=False,
         )
-        return p.returncode, p.stdout or "", p.stderr or ""
-    except subprocess.TimeoutExpired:
-        return -1, "", f"timeout after {_TIMEOUT_S}s"
     except (OSError, ValueError) as exc:
         return -1, "", str(exc)
+    try:
+        out, err = proc.communicate(input=stdin_text, timeout=_TIMEOUT_S)
+        return proc.returncode, out or "", err or ""
+    except subprocess.TimeoutExpired:
+        with contextlib.suppress(Exception):  # best-effort tree reap
+            if os.name == "nt":
+                subprocess.run(
+                    ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                    capture_output=True,
+                    timeout=15,
+                    check=False,
+                )
+            else:
+                proc.kill()
+        with contextlib.suppress(Exception):
+            proc.communicate(timeout=10)
+        return -1, "", f"timeout after {_TIMEOUT_S}s (tree-killed)"
 
 
 async def name_communities(graph_json_path: str) -> int:
