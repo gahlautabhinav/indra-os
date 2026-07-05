@@ -54,6 +54,12 @@ lightrag-ui = [
     "openai>=1.40",
     "bcrypt<4.1",
 ]
+# Terminal UI (indra.tui) — btop/lazyvim-grade TUI monitor over the read-only
+# REST API. httpx is already a core dep; only Textual is extra.
+tui = ["textual>=0.80"]
+
+[project.scripts]
+indra-tui = "indra.tui.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -75,7 +75,7 @@ INDRA (Command)              — the sovereign dashboard / command layer
 The repo is a monorepo:
 
 ```
-apps/api               FastAPI backend (indra/)
+apps/api               FastAPI backend (indra/) — also hosts indra/tui/ (Textual TUI)
 apps/web               Next.js frontend
 packages/types         shared TypeScript types (consumed from source)
 packages/design-tokens
@@ -240,6 +240,10 @@ py -3.14 -m uvicorn indra.main:app --reload --port 8333
 
 # 3. Web  (apps/web)
 npm run dev          # defaults to port 3333
+
+# 4. TUI  (apps/api, optional) — read-only terminal dashboard (Textual)
+py -3.14 -m pip install -e ".[tui]"   # one-time
+py -3.14 -m indra.tui                  # 1-6 switch screens, 2 = deva drill-down
 ```
 
 Then open `http://localhost:3333` and sign in. Sessions/agents auto-populate ~30s

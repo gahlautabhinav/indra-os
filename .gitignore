@@ -9,6 +9,7 @@ INDRA_DESIGN.md
 PRODUCT.md
 DESIGN.md
 PLAN_DEVAS.md
+TUI_PLAN.md
 ARCHITECTURE.planning.md.bak
 design_files/
 graphify-out/
@@ -64,6 +65,7 @@ dump.rdb
 # Local tooling / skill config (not part of INDRA)
 .agents/
 .claude/
+.codegraph/
 
 # Secrets
 *.pem

@@ -93,6 +93,11 @@ py -3.14 -m uvicorn indra.main:app --reload --port 8333
 # 3. Web  (terminal 3)
 cd apps/web
 npm run dev            # defaults to port 3333
+
+# 4. TUI  (terminal 4, optional) — btop/lazyvim-grade terminal dashboard
+cd apps/api
+py -3.14 -m pip install -e ".[tui]"   # one-time: installs Textual
+py -3.14 -m indra.tui                  # signs in, then 1-6 switch screens, q quits
 ```
 
 Open **http://localhost:3333** and sign in. Create the first user via the CLI:
@@ -100,6 +105,12 @@ Open **http://localhost:3333** and sign in. Create the first user via the CLI:
 ```bash
 py -3.14 -m indra.cli create-user
 ```
+
+The **TUI** (terminal 4) is a read-only monitor over the same API — Command overview
+(host CPU/MEM, token-burn sparkline, alerts), a navigable **33-deva list with live
+per-deva detail** (↑/↓ to inspect each deva's own endpoint), and
+Agents/Sessions/Tasks/Second-Brain tables. Keys `1`-`6` switch screens, `r` refresh,
+`q` quit. Flags: `--host --port 8333 --interval 2`.
 
 Config lives in `apps/api/.env` (gitignored) and `apps/web/.env.local`; copy the shape
 from [`.env.example`](./.env.example). Database migrations (Alembic) live under
