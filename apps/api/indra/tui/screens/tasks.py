@@ -1,58 +1,59 @@
-"""Tasks — stat summary line + DataTable of tasks."""
+"""Tasks — stat summary line + table; Enter → full task (input/output/error)."""
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 from rich.text import Text
-from textual.app import ComposeResult
-from textual.widgets import DataTable, Static
+from textual.widget import Widget
+from textual.widgets import Static
 
 from indra.tui import theme
-from indra.tui.screens.base import Pane
+from indra.tui.screens.table import TablePane
 
 if TYPE_CHECKING:
     from indra.tui.app import IndraTUI
 
-_STAT_ORDER = [
-    ("running", "running"),
-    ("pending", "pending"),
-    ("completed", "completed"),
-    ("failed", "failed"),
-    ("cancelled", "cancelled"),
-]
+_STAT_ORDER = ["running", "pending", "completed", "failed", "cancelled"]
+_PRIORITY = {0: "normal", 1: "high", 2: "critical"}
 
 
-class TasksPane(Pane):
-    def compose(self) -> ComposeResult:
-        yield Static("TASKS", classes="pane-title")
-        yield Static("", id="task-stats")
-        yield DataTable(id="tasks-table", zebra_stripes=True, cursor_type="row")
+class TasksPane(TablePane):
+    TITLE = "TASKS"
+    COLUMNS = ["NAME", "STATUS", "PRIORITY", "CREATED", "ERROR"]
+    SORTS = [("name", "name"), ("status", "status"), ("priority", "priority"), ("created", "created_at")]
+    EMPTY = "no tasks yet"
 
-    def on_mount(self) -> None:
-        self.query_one(DataTable).add_columns("NAME", "STATUS", "PRIORITY", "CREATED", "ERROR")
+    def extra_widgets(self) -> Iterable[Widget]:
+        return (Static("", id="task-stats"),)
 
     async def refresh_view(self, app: IndraTUI) -> None:
-        stats: dict[str, Any] = await app.client.task_stats() or {}
+        stats = await app.client.task_stats() or {}
         line = Text()
-        for key, label in _STAT_ORDER:
-            n = int(stats.get(key, 0) or 0)
-            line.append(f"{label} ", style=theme.INK_TERTIARY)
-            line.append(f"{n}   ", style=theme.status_color(key))
+        for key in _STAT_ORDER:
+            line.append(f"{key} ", style=theme.INK_TERTIARY)
+            line.append(f"{int(stats.get(key, 0) or 0)}   ", style=theme.status_color(key))
         line.append(f"total {int(stats.get('total', 0) or 0)}", style=theme.INK_SECONDARY)
         self.query_one("#task-stats", Static).update(line)
+        await super().refresh_view(app)
 
-        data: dict[str, Any] = await app.client.tasks() or {}
-        table = self.query_one(DataTable)
-        table.clear()
-        for tk in data.get("tasks") or []:
-            st = str(tk.get("status", ""))
-            prio = int(tk.get("priority", 0) or 0)
-            prio_label = {0: "normal", 1: "high", 2: "critical"}.get(prio, str(prio))
-            table.add_row(
-                str(tk.get("name", "—")),
-                Text(st, style=theme.status_color(st)),
-                prio_label,
-                str(tk.get("created_at") or "—")[:19],
-                str(tk.get("error") or "")[:40],
-            )
+    async def fetch(self, app: IndraTUI) -> list[dict[str, Any]]:
+        data = await app.client.tasks() or {}
+        return list(data.get("tasks") or [])
+
+    def extract(self, raw: dict[str, Any]) -> tuple[str, list[Any]]:
+        st = str(raw.get("status", ""))
+        rid = str(raw.get("id") or "")
+        cells = [
+            str(raw.get("name", "—")),
+            Text(st, style=theme.status_color(st)),
+            _PRIORITY.get(int(raw.get("priority", 0) or 0), str(raw.get("priority", 0))),
+            str(raw.get("created_at") or "—")[:19],
+            str(raw.get("error") or "")[:40],
+        ]
+        return rid, cells
+
+    async def fetch_detail(self, app: IndraTUI, row_id: str) -> tuple[str, Any] | None:
+        task = await app.client.raw(f"/api/v1/tasks/{row_id}")
+        return f"TASK · {row_id[:8]}", task

@@ -1,4 +1,4 @@
-"""Sessions — DataTable of CLI sessions mirrored into INDRA."""
+"""Sessions — CLI sessions table; Enter → session events."""
 
 from __future__ import annotations
 
@@ -6,39 +6,45 @@ import os
 from typing import TYPE_CHECKING, Any
 
 from rich.text import Text
-from textual.app import ComposeResult
-from textual.widgets import DataTable, Static
 
 from indra.tui import theme
-from indra.tui.screens.base import Pane
+from indra.tui.screens.table import TablePane
 
 if TYPE_CHECKING:
     from indra.tui.app import IndraTUI
 
 
-class SessionsPane(Pane):
-    def compose(self) -> ComposeResult:
-        yield Static("SESSIONS", classes="pane-title")
-        yield DataTable(id="sessions-table", zebra_stripes=True, cursor_type="row")
+class SessionsPane(TablePane):
+    TITLE = "SESSIONS"
+    COLUMNS = ["PLUGIN", "PROJECT", "STATUS", "TOKENS", "COST", "EVENTS", "STARTED"]
+    SORTS = [
+        ("plugin", "plugin_type"),
+        ("status", "status"),
+        ("tokens", "token_count"),
+        ("cost", "cost_usd"),
+        ("events", "event_count"),
+    ]
+    EMPTY = "no sessions yet — run a CLI (Claude Code / Codex / …); the poller mirrors it ~30s"
 
-    def on_mount(self) -> None:
-        self.query_one(DataTable).add_columns(
-            "PLUGIN", "PROJECT", "STATUS", "TOKENS", "COST", "EVENTS", "STARTED"
-        )
+    async def fetch(self, app: IndraTUI) -> list[dict[str, Any]]:
+        data = await app.client.sessions() or {}
+        return list(data.get("sessions") or [])
 
-    async def refresh_view(self, app: IndraTUI) -> None:
-        data: dict[str, Any] = await app.client.sessions() or {}
-        table = self.query_one(DataTable)
-        table.clear()
-        for s in data.get("sessions") or []:
-            st = str(s.get("status", ""))
-            proj = s.get("project_path") or ""
-            table.add_row(
-                str(s.get("plugin_type", "—")),
-                os.path.basename(str(proj).rstrip("/\\")) or "—",
-                Text(st, style=theme.status_color(st)),
-                f"{int(s.get('token_count', 0) or 0):,}",
-                f"${float(s.get('cost_usd', 0) or 0):.2f}",
-                str(s.get("event_count", 0)),
-                str(s.get("started_at") or "—")[:19],
-            )
+    def extract(self, raw: dict[str, Any]) -> tuple[str, list[Any]]:
+        st = str(raw.get("status", ""))
+        proj = str(raw.get("project_path") or "")
+        rid = str(raw.get("id") or "")
+        cells = [
+            str(raw.get("plugin_type", "—")),
+            os.path.basename(proj.rstrip("/\\")) or "—",
+            Text(st, style=theme.status_color(st)),
+            f"{int(raw.get('token_count', 0) or 0):,}",
+            f"${float(raw.get('cost_usd', 0) or 0):.2f}",
+            str(raw.get("event_count", 0)),
+            str(raw.get("started_at") or "—")[:19],
+        ]
+        return rid, cells
+
+    async def fetch_detail(self, app: IndraTUI, row_id: str) -> tuple[str, Any] | None:
+        events = await app.client.raw(f"/api/v1/sessions/{row_id}/events")
+        return f"SESSION · {row_id[:8]}", events

@@ -143,6 +143,60 @@ DataTable {
     color: #a8b8c8;
 }
 
+#tp-filter, #deva-filter {
+    height: 3;
+    margin: 0 1;
+    border: round #334455;
+    background: #0c1018;
+}
+
+#tp-empty {
+    height: auto;
+    padding: 2 2;
+}
+
+/* ── Drill-down + help modals ── */
+DetailModal, HelpModal {
+    align: center middle;
+}
+
+#detail-box {
+    width: 80%;
+    max-width: 110;
+    height: 80%;
+    background: #111722;
+    border: round #334455;
+    padding: 1 2;
+}
+
+#detail-body {
+    height: 1fr;
+    overflow-y: auto;
+}
+
+#detail-title, #help-title {
+    text-style: bold;
+    padding-bottom: 1;
+}
+
+#detail-hint, #help-hint {
+    height: 1;
+    color: #637585;
+    padding-top: 1;
+}
+
+#help-box {
+    width: 66;
+    height: auto;
+    background: #111722;
+    border: round #334455;
+    padding: 1 2;
+}
+
+#help-body {
+    height: auto;
+}
+
 /* ── Devas: master-detail ── */
 #deva-split {
     height: 1fr;

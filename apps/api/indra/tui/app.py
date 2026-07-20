@@ -13,6 +13,7 @@ from typing import Any
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.timer import Timer
 from textual.widgets import ContentSwitcher, Footer, Header, Static
 
 from indra.tui import theme
@@ -24,6 +25,7 @@ from indra.tui.screens.command import CommandPane
 from indra.tui.screens.devas import DevaPane
 from indra.tui.screens.sessions import SessionsPane
 from indra.tui.screens.tasks import TasksPane
+from indra.tui.widgets.help_modal import HelpModal
 from indra.tui.widgets.login_modal import LoginModal
 
 _PANES: list[tuple[str, type[Pane]]] = [
@@ -48,6 +50,11 @@ class IndraTUI(App[None]):
         Binding("5", "show('tasks')", "Tasks"),
         Binding("6", "show('brain')", "Brain"),
         Binding("r", "refresh", "Refresh"),
+        Binding("p", "pause", "Pause"),
+        Binding("plus", "faster", "Faster"),
+        Binding("minus", "slower", "Slower"),
+        Binding("equals_sign", "faster", "Faster", show=False),
+        Binding("question_mark", "help", "Help"),
         Binding("q", "quit", "Quit"),
     ]
 
@@ -69,6 +76,8 @@ class IndraTUI(App[None]):
         self.last_telemetry: dict[str, Any] | None = None
         self.history: dict[str, deque[float]] = {"burn": deque([0.0], maxlen=90)}
         self._modal_open = False
+        self._paused = False
+        self._timer: Timer | None = None
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -89,7 +98,7 @@ class IndraTUI(App[None]):
         if not self.client.has_token:
             await self._prompt_login()
         await self._tick()
-        self.set_interval(self._interval, self._schedule_tick)
+        self._timer = self.set_interval(self._interval, self._schedule_tick)
 
     async def _prompt_login(self) -> None:
         self._modal_open = True
@@ -100,6 +109,9 @@ class IndraTUI(App[None]):
         self.run_worker(self._tick(), exclusive=True, group="tick")
 
     async def _tick(self) -> None:
+        if self._paused:
+            self._update_conn()
+            return
         if self.client.needs_login and not self._modal_open:
             await self._prompt_login()
         d = await self.client.dashboard()
@@ -131,11 +143,15 @@ class IndraTUI(App[None]):
 
     def _update_conn(self) -> None:
         ok = self.client.connected
-        dot = theme.STATE["healthy"] if ok else theme.STATE["critical"]
-        label = "CONNECTED" if ok else "RECONNECTING…"
+        if self._paused:
+            dot, label = theme.STATE["degraded"], "PAUSED"
+        elif ok:
+            dot, label = theme.STATE["healthy"], "CONNECTED"
+        else:
+            dot, label = theme.STATE["critical"], "RECONNECTING…"
         self.query_one("#conn", Static).update(
             f"[{dot}]●[/] [{theme.INK_SECONDARY}]{label}[/] "
-            f"[{theme.INK_TERTIARY}]{self._base_url} · refresh {self._interval:g}s[/]"
+            f"[{theme.INK_TERTIARY}]{self._base_url} · refresh {self._interval:g}s · ? help[/]"
         )
 
     def action_show(self, pane: str) -> None:
@@ -147,6 +163,26 @@ class IndraTUI(App[None]):
 
     def action_refresh(self) -> None:
         self.run_worker(self._tick(), exclusive=True, group="tick")
+
+    def action_help(self) -> None:
+        self.push_screen(HelpModal())
+
+    def action_pause(self) -> None:
+        self._paused = not self._paused
+        self._update_conn()
+
+    def action_faster(self) -> None:
+        self._set_interval(max(0.5, round(self._interval - 0.5, 1)))
+
+    def action_slower(self) -> None:
+        self._set_interval(min(10.0, round(self._interval + 0.5, 1)))
+
+    def _set_interval(self, value: float) -> None:
+        self._interval = value
+        if self._timer is not None:
+            self._timer.stop()
+        self._timer = self.set_interval(self._interval, self._schedule_tick)
+        self._update_conn()
 
     async def on_unmount(self) -> None:
         await self.client.aclose()
